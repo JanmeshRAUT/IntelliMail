@@ -1,12 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Settings2, LogOut, Moon, Sun } from 'lucide-react';
+import { Settings2, LogOut } from 'lucide-react';
 import { AppUser, clearSession, getUser, setUser } from '../lib/localData';
 
 export default function Settings() {
   const [user, setLocalUser] = useState<AppUser | null>(null);
   const [displayName, setDisplayName] = useState('');
-  const [theme, setTheme] = useState<'light' | 'dark'>('light');
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -14,12 +13,6 @@ export default function Settings() {
     if (current) {
       setLocalUser(current);
       setDisplayName(current.name);
-    }
-
-    const savedTheme = localStorage.getItem('intellimail_theme');
-    if (savedTheme === 'dark' || savedTheme === 'light') {
-      setTheme(savedTheme);
-      document.documentElement.classList.toggle('dark', savedTheme === 'dark');
     }
   }, []);
 
@@ -36,13 +29,6 @@ export default function Settings() {
     alert('Profile updated');
   };
 
-  const handleThemeToggle = () => {
-    const next = theme === 'light' ? 'dark' : 'light';
-    setTheme(next);
-    localStorage.setItem('intellimail_theme', next);
-    document.documentElement.classList.toggle('dark', next === 'dark');
-  };
-
   const handleLogout = () => {
     clearSession();
     navigate('/login');
@@ -57,60 +43,50 @@ export default function Settings() {
   }
 
   return (
-    <div className="p-8 max-w-4xl mx-auto space-y-8">
-      <header className="flex items-center gap-3">
-        <Settings2 className="w-6 h-6 text-blue-600" />
-        <h1 className="text-3xl font-bold text-neutral-900">Settings</h1>
+    <div className="p-8 max-w-4xl mx-auto space-y-10 text-[var(--foreground)] transition-colors duration-300">
+      <header className="flex flex-col gap-2">
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-primary-100 dark:bg-primary-900/30 rounded-lg">
+            <Settings2 className="w-6 h-6 text-primary-600 dark:text-primary-400" />
+          </div>
+          <h1 className="text-3xl font-extrabold tracking-tight">Settings</h1>
+        </div>
+        <p className="text-[var(--muted-foreground)] ml-11">Manage your account preferences and application appearance.</p>
       </header>
 
-      <section className="bg-white border border-neutral-200 rounded-2xl p-6">
-        <h2 className="font-semibold text-lg text-neutral-900 mb-4">Profile</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <label className="space-y-1 text-sm text-neutral-700">
-            Display Name
-            <input
-              type="text"
-              value={displayName}
-              onChange={(e) => setDisplayName(e.target.value)}
-              className="w-full px-3 py-2 border border-neutral-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-            />
+      <section className="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-8 shadow-sm space-y-6">
+        <div className="flex items-center gap-2 pb-4 border-b border-[var(--border)]">
+          <h2 className="font-bold text-xl">General Preferences</h2>
+        </div>
+
+        <div className="space-y-4">
+          <label className="flex items-center justify-between gap-4 px-4 py-3 bg-[var(--secondary)] rounded-xl border border-[var(--border)]">
+            <span className="font-medium text-[var(--foreground)]">Email previews</span>
+            <input type="checkbox" className="h-5 w-5" checked />
           </label>
-          <label className="space-y-1 text-sm text-neutral-700">
-            Email (readonly)
-            <input
-              type="email"
-              value={user.email}
-              readOnly
-              className="w-full px-3 py-2 border border-neutral-200 rounded-lg bg-neutral-50"
-            />
+
+          <label className="flex items-center justify-between gap-4 px-4 py-3 bg-[var(--secondary)] rounded-xl border border-[var(--border)]">
+            <span className="font-medium text-[var(--foreground)]">Desktop notifications</span>
+            <input type="checkbox" className="h-5 w-5" />
+          </label>
+
+          <label className="flex items-center justify-between gap-4 px-4 py-3 bg-[var(--secondary)] rounded-xl border border-[var(--border)]">
+            <span className="font-medium text-[var(--foreground)]">Auto-sorting rules</span>
+            <input type="checkbox" className="h-5 w-5" checked />
           </label>
         </div>
-        <div className="flex flex-wrap items-center gap-2 mt-4">
-          <button
-            onClick={handleSave}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all"
-          >
-            Save profile
-          </button>
-          <button
-            onClick={handleLogout}
-            className="px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-all flex items-center gap-2"
-          >
-            <LogOut className="w-4 h-4" /> Sign out
-          </button>
+
+        <div className="pt-4 border-t border-[var(--border)]">
+          <h3 className="text-sm text-[var(--muted-foreground)]">Theme</h3>
+          <p className="text-xs text-[var(--muted-foreground)]">Use the theme toggle button in the header to switch Light/Dark modes.</p>
         </div>
       </section>
 
-      <section className="bg-white border border-neutral-200 rounded-2xl p-6">
-        <h2 className="font-semibold text-lg text-neutral-900 mb-4">Appearance</h2>
-        <div className="flex flex-wrap items-center gap-3">
-          <button
-            onClick={handleThemeToggle}
-            className="px-4 py-2 rounded-lg border border-neutral-200 hover:border-blue-300 flex items-center gap-2"
-          >
-            {theme === 'light' ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
-            {theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}
-          </button>
+      <section className="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-8 shadow-sm">
+        <h2 className="font-bold text-xl mb-4">Security</h2>
+        <div className="space-y-3">
+          <p className="text-sm text-[var(--muted-foreground)]">Two-factor authentication is not yet enabled.</p>
+          <button className="px-4 py-2 border border-[var(--border)] rounded-lg text-sm font-semibold hover:bg-[var(--secondary)] transition-all">Enable 2FA</button>
         </div>
       </section>
     </div>
