@@ -4,6 +4,7 @@ import LoginPage from './components/LoginPage';
 import Dashboard from './components/Dashboard';
 import ThreadDetail from './components/ThreadDetail';
 import Analytics from './components/Analytics';
+import Settings from './components/Settings';
 import Sidebar from './components/Sidebar';
 import { Loader2 } from 'lucide-react';
 import { AppUser, getUser } from './lib/localData';
@@ -35,6 +36,7 @@ export default function App() {
             <Route path="/" element={user ? <Dashboard /> : <Navigate to="/login" />} />
             <Route path="/thread/:id" element={user ? <ThreadDetail /> : <Navigate to="/login" />} />
             <Route path="/analytics" element={user ? <Analytics /> : <Navigate to="/login" />} />
+            <Route path="/settings" element={user ? <Settings /> : <Navigate to="/login" />} />
           </Routes>
         </main>
       </div>

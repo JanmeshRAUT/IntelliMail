@@ -53,7 +53,7 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
             />
             <div className="flex flex-col">
               <span className="text-sm font-bold text-neutral-900 truncate max-w-[120px]">
-                {user.name}
+                {formatDisplayName(user.name)}
               </span>
               <span className="text-[10px] text-neutral-500 truncate max-w-[120px]">
                 {user.email}
@@ -97,4 +97,12 @@ function NavItem({ to, icon, label, disabled = false }: { to: string, icon: Reac
       <span>{label}</span>
     </NavLink>
   );
+}
+
+function formatDisplayName(name: string) {
+  if (!name) return '';
+  return name
+    .split(' ')
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+    .join(' ');
 }
