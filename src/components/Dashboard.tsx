@@ -129,12 +129,21 @@ export default function Dashboard() {
     try {
       let accessToken = getAccessToken();
 
-      if (!accessToken || isAccessTokenExpired()) {
-        accessToken = await refreshToken(false);
-      }
-
+      // Only refresh if token is missing or expired
       if (!accessToken) {
-        accessToken = await refreshToken(true);
+        accessToken = await refreshToken(false);
+        if (!accessToken) {
+          accessToken = await refreshToken(true);
+        }
+      } else if (isAccessTokenExpired()) {
+        // Token is expired, attempt silent refresh first
+        const refreshedToken = await refreshToken(false);
+        if (refreshedToken) {
+          accessToken = refreshedToken;
+        } else {
+          // Silent refresh failed, try interactive re-consent
+          accessToken = await refreshToken(true);
+        }
       }
 
       if (!accessToken) {
