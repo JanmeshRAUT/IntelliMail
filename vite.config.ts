@@ -5,7 +5,7 @@ import {defineConfig} from 'vite';
 
 export default defineConfig(({mode}) => {
   return {
-    plugins: [react(), tailwindcss()],
+    plugins: [react(), tailwindcss({ darkMode: 'class' })],
     resolve: {
       alias: {
         '@': path.resolve(__dirname, '.'),
