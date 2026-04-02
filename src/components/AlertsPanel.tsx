@@ -23,12 +23,12 @@ export default function AlertsPanel() {
     <div className="relative">
       <button 
         onClick={() => setIsOpen(!isOpen)}
-        className="relative p-2 text-neutral-500 hover:text-neutral-900 transition-colors"
+        className="relative p-2 text-neutral-600 hover:text-red-600 transition-colors hover:bg-red-50 rounded-lg"
       >
-        <Bell className="w-6 h-6" />
+        <Bell className={`w-6 h-6 ${alerts.length > 0 ? 'text-red-500 animate-bounce' : ''}`} />
         {alerts.length > 0 && (
-          <span className="absolute top-1 right-1 w-4 h-4 bg-red-500 text-white text-[10px] font-bold flex items-center justify-center rounded-full border-2 border-white">
-            {alerts.length}
+          <span className="absolute top-0 right-0 w-5 h-5 bg-red-600 text-white text-[11px] font-bold flex items-center justify-center rounded-full border-2 border-white shadow-lg">
+            {alerts.length > 9 ? '9+' : alerts.length}
           </span>
         )}
       </button>
