@@ -1,0 +1,5 @@
+{
+  "name": "IntelliMail",
+  "description": "Gmail Thread Detection & AI Analysis System. Connects to Gmail, organizes threads, and uses AI to analyze priority, sentiment, category, and threats.",
+  "requestFramePermissions": []
+}
