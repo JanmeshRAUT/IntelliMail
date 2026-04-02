@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { Inbox, Settings, LogOut, Mail, Zap, BarChart3 } from 'lucide-react';
+import { Inbox, Settings, LogOut, Mail, Zap, BarChart3, User } from 'lucide-react';
 import { AppUser, clearSession } from '../lib/localData';
 
 interface SidebarProps {
@@ -33,6 +33,7 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
       <nav className="flex-1 px-4 space-y-3">
         <NavItem to="/" icon={<Inbox className="w-5 h-5 transition-transform group-hover:scale-110" />} label="Inbox" />
         <NavItem to="/analytics" icon={<BarChart3 className="w-5 h-5 transition-transform group-hover:scale-110" />} label="Analytics" />
+        <NavItem to="/profile" icon={<User className="w-5 h-5 transition-transform group-hover:scale-110" />} label="Profile" />
         <NavItem to="/settings" icon={<Settings className="w-5 h-5 transition-transform group-hover:scale-110" />} label="Settings" />
       </nav>
 

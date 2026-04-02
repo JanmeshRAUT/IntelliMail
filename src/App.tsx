@@ -5,6 +5,7 @@ import Dashboard from './components/Dashboard';
 import ThreadDetail from './components/ThreadDetail';
 import Analytics from './components/Analytics';
 import Settings from './components/Settings';
+import Profile from './components/Profile';
 import Sidebar from './components/Sidebar';
 import ThemeToggle from './components/ThemeToggle';
 import AlertsPanel from './components/AlertsPanel';
@@ -43,6 +44,7 @@ export default function App() {
             <Route path="/thread/:id" element={user ? <ThreadDetail /> : <Navigate to="/login" />} />
             <Route path="/analytics" element={user ? <Analytics /> : <Navigate to="/login" />} />
             <Route path="/settings" element={user ? <Settings /> : <Navigate to="/login" />} />
+            <Route path="/profile" element={user ? <Profile /> : <Navigate to="/login" />} />
           </Routes>
         </main>
       </div>

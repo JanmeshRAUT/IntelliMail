@@ -56,46 +56,37 @@ export default function Settings() {
 
       <section className="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-8 shadow-sm space-y-6">
         <div className="flex items-center gap-2 pb-4 border-b border-[var(--border)]">
-          <h2 className="font-bold text-xl">Profile Information</h2>
+          <h2 className="font-bold text-xl">General Preferences</h2>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="space-y-2">
-            <label className="text-sm font-semibold text-[var(--muted-foreground)] ml-1">
-              Display Name
-            </label>
-            <input
-              type="text"
-              value={displayName}
-              onChange={(e) => setDisplayName(e.target.value)}
-              placeholder="Your name"
-              className="w-full px-4 py-3 bg-[var(--background)] border border-[var(--border)] rounded-xl focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 outline-none transition-all font-medium"
-            />
-          </div>
-          <div className="space-y-2">
-            <label className="text-sm font-semibold text-[var(--muted-foreground)] ml-1">
-              Email Address
-            </label>
-            <input
-              type="email"
-              value={user.email}
-              readOnly
-              className="w-full px-4 py-3 bg-[var(--secondary)] border border-[var(--border)] rounded-xl text-[var(--muted-foreground)] cursor-not-allowed font-medium"
-            />
-          </div>
+
+        <div className="space-y-4">
+          <label className="flex items-center justify-between gap-4 px-4 py-3 bg-[var(--secondary)] rounded-xl border border-[var(--border)]">
+            <span className="font-medium text-[var(--foreground)]">Email previews</span>
+            <input type="checkbox" className="h-5 w-5" checked />
+          </label>
+
+          <label className="flex items-center justify-between gap-4 px-4 py-3 bg-[var(--secondary)] rounded-xl border border-[var(--border)]">
+            <span className="font-medium text-[var(--foreground)]">Desktop notifications</span>
+            <input type="checkbox" className="h-5 w-5" />
+          </label>
+
+          <label className="flex items-center justify-between gap-4 px-4 py-3 bg-[var(--secondary)] rounded-xl border border-[var(--border)]">
+            <span className="font-medium text-[var(--foreground)]">Auto-sorting rules</span>
+            <input type="checkbox" className="h-5 w-5" checked />
+          </label>
         </div>
-        <div className="flex flex-wrap items-center gap-3 pt-4">
-          <button
-            onClick={handleSave}
-            className="px-6 py-2.5 bg-primary-600 text-white rounded-xl hover:bg-primary-700 shadow-lg shadow-primary-500/20 transition-all font-bold text-sm"
-          >
-            Save Changes
-          </button>
-          <button
-            onClick={handleLogout}
-            className="px-6 py-2.5 bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400 rounded-xl hover:bg-red-100 dark:hover:bg-red-500/20 transition-all flex items-center gap-2 font-bold text-sm"
-          >
-            <LogOut className="w-4 h-4" /> Sign out
-          </button>
+
+        <div className="pt-4 border-t border-[var(--border)]">
+          <h3 className="text-sm text-[var(--muted-foreground)]">Theme</h3>
+          <p className="text-xs text-[var(--muted-foreground)]">Use the theme toggle button in the header to switch Light/Dark modes.</p>
+        </div>
+      </section>
+
+      <section className="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-8 shadow-sm">
+        <h2 className="font-bold text-xl mb-4">Security</h2>
+        <div className="space-y-3">
+          <p className="text-sm text-[var(--muted-foreground)]">Two-factor authentication is not yet enabled.</p>
+          <button className="px-4 py-2 border border-[var(--border)] rounded-lg text-sm font-semibold hover:bg-[var(--secondary)] transition-all">Enable 2FA</button>
         </div>
       </section>
     </div>
