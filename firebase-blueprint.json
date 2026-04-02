@@ -1,0 +1,85 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "Application user profile",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "displayName": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "lastLogin": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email"]
+    },
+    "Email": {
+      "title": "Email",
+      "description": "Individual email message",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "threadId": { "type": "string" },
+        "subject": { "type": "string" },
+        "from": { "type": "string" },
+        "to": { "type": "string" },
+        "body": { "type": "string" },
+        "snippet": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "threadId", "from"]
+    },
+    "Thread": {
+      "title": "Thread",
+      "description": "Grouped email conversation",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "subject": { "type": "string" },
+        "lastMessageTimestamp": { "type": "string", "format": "date-time" },
+        "analysis": {
+          "type": "object",
+          "properties": {
+            "category": { "type": "string", "enum": ["Work", "Personal", "Spam", "Promotions"] },
+            "sentiment": { "type": "string", "enum": ["Positive", "Neutral", "Negative"] },
+            "priority": { "type": "string", "enum": ["High", "Medium", "Low"] },
+            "threats": { "type": "array", "items": { "type": "string" } },
+            "summary": { "type": "string" }
+          }
+        }
+      },
+      "required": ["id", "subject"]
+    },
+    "Alert": {
+      "title": "Alert",
+      "description": "Security or priority alert",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "type": { "type": "string", "enum": ["Threat", "Urgent"] },
+        "message": { "type": "string" },
+        "threadId": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "type", "message"]
+    }
+  },
+  "firestore": {
+    "/users/{uid}": {
+      "schema": "User",
+      "description": "User profiles"
+    },
+    "/users/{uid}/emails/{emailId}": {
+      "schema": "Email",
+      "description": "User's fetched emails"
+    },
+    "/users/{uid}/threads/{threadId}": {
+      "schema": "Thread",
+      "description": "User's email threads with analysis"
+    },
+    "/users/{uid}/alerts/{alertId}": {
+      "schema": "Alert",
+      "description": "User's alerts"
+    }
+  }
+}
