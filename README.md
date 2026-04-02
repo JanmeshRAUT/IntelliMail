@@ -15,6 +15,7 @@ View your app in AI Studio: https://ai.studio/apps/a34b9eec-f1b4-41a4-80af-16ec3
 
 1. Install dependencies:
    `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
+2. Set `VITE_GOOGLE_CLIENT_ID` in `.env` to your Google OAuth Web Client ID
+3. In Google Cloud Console, add your local dev origin (for example `http://localhost:3000`) to Authorized JavaScript origins
+4. Run the app:
    `npm run dev`

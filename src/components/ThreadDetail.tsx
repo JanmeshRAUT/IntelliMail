@@ -1,30 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
-import { auth, db } from '../firebase';
-import { ArrowLeft, User, Calendar, ShieldAlert, Zap, MessageSquare, Info } from 'lucide-react';
+import { ArrowLeft, User, ShieldAlert, Zap } from 'lucide-react';
 import { motion } from 'motion/react';
-
-interface Email {
-  id: string;
-  subject: string;
-  from: string;
-  body: string;
-  timestamp: string;
-  snippet: string;
-}
-
-interface Thread {
-  id: string;
-  subject: string;
-  analysis?: {
-    category: string;
-    sentiment: string;
-    priority: string;
-    threats: string[];
-    summary: string;
-  };
-}
+import { Email, getEmails, getThreads, Thread } from '../lib/localData';
 
 export default function ThreadDetail() {
   const { id } = useParams<{ id: string }>();
@@ -33,32 +11,25 @@ export default function ThreadDetail() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchData = async () => {
-      if (!auth.currentUser || !id) return;
-
-      try {
-        // Fetch thread
-        const threadDoc = await getDoc(doc(db, 'users', auth.currentUser.uid, 'threads', id));
-        if (threadDoc.exists()) {
-          setThread({ id: threadDoc.id, ...threadDoc.data() } as Thread);
-        }
-
-        // Fetch emails in this thread
-        const q = query(
-          collection(db, 'users', auth.currentUser.uid, 'emails'),
-          where('threadId', '==', id)
-        );
-        const snapshot = await getDocs(q);
-        const emailData = snapshot.docs.map(doc => doc.data() as Email);
-        setEmails(emailData.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()));
-      } catch (error) {
-        console.error('Error fetching thread detail:', error);
-      } finally {
+    const hydrate = () => {
+      if (!id) {
         setLoading(false);
+        return;
       }
+
+      const storedThread = getThreads().find((candidate) => candidate.id === id) || null;
+      const storedEmails = getEmails()
+        .filter((email) => email.threadId === id)
+        .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+
+      setThread(storedThread);
+      setEmails(storedEmails);
+      setLoading(false);
     };
 
-    fetchData();
+    hydrate();
+    window.addEventListener('intellimail:data-updated', hydrate);
+    return () => window.removeEventListener('intellimail:data-updated', hydrate);
   }, [id]);
 
   if (loading) return <div className="p-8 animate-pulse space-y-4"><div className="h-8 w-1/3 bg-neutral-200 rounded" /><div className="h-64 bg-neutral-100 rounded-2xl" /></div>;

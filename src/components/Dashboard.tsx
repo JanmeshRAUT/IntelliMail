@@ -1,23 +1,22 @@
 import React, { useState, useEffect } from 'react';
-import { collection, query, onSnapshot, orderBy, doc, setDoc, getDocs } from 'firebase/firestore';
-import { auth, db } from '../firebase';
-import { Search, Filter, RefreshCw, AlertTriangle, Inbox, Clock, Star, ShieldAlert } from 'lucide-react';
+import { Search, RefreshCw, Inbox, ShieldAlert } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
-
-interface Thread {
-  id: string;
-  subject: string;
-  lastMessageTimestamp: string;
-  analysis?: {
-    category: string;
-    sentiment: string;
-    priority: string;
-    threats: string[];
-    summary: string;
-  };
-}
+import {
+  Alert,
+  Email,
+  getAccessToken,
+  getThreads,
+  isAccessTokenExpired,
+  pushAlerts,
+  setAccessToken,
+  ThreadAnalysis,
+  Thread,
+  upsertEmails,
+  upsertThreads,
+} from '../lib/localData';
+import { requestGoogleAccessToken } from '../lib/googleAuth';
 
 export default function Dashboard() {
   const [threads, setThreads] = useState<Thread[]>([]);
@@ -25,87 +24,136 @@ export default function Dashboard() {
   const [refreshing, setRefreshing] = useState(false);
   const [filter, setFilter] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
+  const [syncError, setSyncError] = useState<string | null>(null);
+
+  const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 
   useEffect(() => {
-    if (!auth.currentUser) return;
-
-    const q = query(
-      collection(db, 'users', auth.currentUser.uid, 'threads'),
-      orderBy('lastMessageTimestamp', 'desc')
-    );
-
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const threadData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Thread));
-      setThreads(threadData);
+    const hydrateThreads = () => {
+      setThreads(getThreads());
       setLoading(false);
-    });
+    };
 
-    return () => unsubscribe();
+    hydrateThreads();
+    window.addEventListener('intellimail:data-updated', hydrateThreads);
+    return () => window.removeEventListener('intellimail:data-updated', hydrateThreads);
   }, []);
 
   const fetchEmails = async () => {
     setRefreshing(true);
-    const accessToken = localStorage.getItem('gmail_access_token');
-    if (!accessToken || !auth.currentUser) return;
+    setSyncError(null);
 
-    try {
+    const refreshToken = async (interactive: boolean): Promise<string | null> => {
+      if (!clientId) {
+        setSyncError('Missing VITE_GOOGLE_CLIENT_ID. Configure it in .env.');
+        return null;
+      }
+
+      try {
+        const tokenResponse = await requestGoogleAccessToken({
+          clientId,
+          prompt: interactive ? 'consent' : '',
+        });
+
+        if (!tokenResponse.access_token) {
+          return null;
+        }
+
+        setAccessToken(tokenResponse.access_token, tokenResponse.expires_in);
+        return tokenResponse.access_token;
+      } catch (refreshError) {
+        console.error('Token refresh failed:', refreshError);
+        if (interactive) {
+          setSyncError('Google re-authentication failed. Please try Sync Gmail again.');
+        }
+        return null;
+      }
+    };
+
+    const syncWithToken = async (accessToken: string) => {
       const response = await axios.post('/api/gmail/fetch', { accessToken });
-      const emails = response.data as any[];
+      const emails = response.data as Email[];
 
       // Group by threadId
-      const groupedThreads: Record<string, any[]> = {};
+      const groupedThreads: Record<string, Email[]> = {};
       emails.forEach((email) => {
         if (!groupedThreads[email.threadId]) groupedThreads[email.threadId] = [];
         groupedThreads[email.threadId].push(email);
       });
 
-      // Save to Firestore and Analyze
+      const nextThreads: Thread[] = [];
+      const nextAlerts: Alert[] = [];
+
       for (const threadId in groupedThreads) {
         const threadEmails = groupedThreads[threadId];
         const latestEmail = threadEmails[0];
-        
-        const threadRef = doc(db, 'users', auth.currentUser.uid, 'threads', threadId);
-        
-        // Save emails to subcollection
-        for (const email of threadEmails) {
-          const emailRef = doc(db, 'users', auth.currentUser.uid, 'emails', email.id);
-          await setDoc(emailRef, email);
-        }
 
-        // Analyze with Gemini
+        // Analyze thread
         const analysisRes = await axios.post('/api/analyze', { emails: threadEmails });
-        const analysis = analysisRes.data as any;
+        const analysis = analysisRes.data as ThreadAnalysis;
 
-        await setDoc(threadRef, {
+        nextThreads.push({
           id: threadId,
           subject: latestEmail.subject,
           lastMessageTimestamp: latestEmail.timestamp,
-          analysis
-        }, { merge: true });
+          analysis,
+        });
 
-        // Create alert if threat detected
+        // Create alerts from analysis output
         if (analysis.threats && analysis.threats.length > 0) {
-          const alertRef = doc(collection(db, 'users', auth.currentUser.uid, 'alerts'));
-          await setDoc(alertRef, {
-            id: alertRef.id,
+          nextAlerts.push({
+            id: `${threadId}-threat-${Date.now()}`,
             type: 'Threat',
             message: `Security threat detected in thread: ${latestEmail.subject}`,
             threadId,
-            timestamp: new Date().toISOString()
+            timestamp: new Date().toISOString(),
           });
         } else if (analysis.priority === 'High') {
-          const alertRef = doc(collection(db, 'users', auth.currentUser.uid, 'alerts'));
-          await setDoc(alertRef, {
-            id: alertRef.id,
+          nextAlerts.push({
+            id: `${threadId}-urgent-${Date.now()}`,
             type: 'Urgent',
             message: `Urgent email detected: ${latestEmail.subject}`,
             threadId,
-            timestamp: new Date().toISOString()
+            timestamp: new Date().toISOString(),
           });
         }
       }
+
+      upsertEmails(emails);
+      upsertThreads(nextThreads);
+      if (nextAlerts.length > 0) {
+        pushAlerts(nextAlerts);
+      }
+    };
+
+    try {
+      let accessToken = getAccessToken();
+
+      if (!accessToken || isAccessTokenExpired()) {
+        accessToken = await refreshToken(false);
+      }
+
+      if (!accessToken) {
+        accessToken = await refreshToken(true);
+      }
+
+      if (!accessToken) {
+        return;
+      }
+
+      try {
+        await syncWithToken(accessToken);
+      } catch (syncError) {
+        console.error('Initial sync failed, attempting re-consent:', syncError);
+        const renewedToken = await refreshToken(true);
+        if (!renewedToken) {
+          return;
+        }
+        await syncWithToken(renewedToken);
+      }
     } catch (error) {
       console.error('Fetch error:', error);
+      setSyncError('Unable to sync Gmail. Please try again in a moment.');
     } finally {
       setRefreshing(false);
     }
@@ -160,6 +208,12 @@ export default function Dashboard() {
           ))}
         </div>
       </div>
+
+      {syncError && (
+        <div className="px-4 py-3 rounded-xl bg-red-50 border border-red-100 text-red-700 text-sm">
+          {syncError}
+        </div>
+      )}
 
       {loading ? (
         <div className="grid grid-cols-1 gap-4">

@@ -1,20 +1,20 @@
 import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { User } from 'firebase/auth';
-import { auth } from '../firebase';
 import { Inbox, ShieldAlert, Settings, LogOut, Mail, Zap, BarChart3 } from 'lucide-react';
 import AlertsPanel from './AlertsPanel';
+import { AppUser, clearSession } from '../lib/localData';
 
 interface SidebarProps {
-  user: User;
+  user: AppUser;
+  onLogout: () => void;
 }
 
-export default function Sidebar({ user }: SidebarProps) {
+export default function Sidebar({ user, onLogout }: SidebarProps) {
   const navigate = useNavigate();
 
-  const handleLogout = async () => {
-    await auth.signOut();
-    localStorage.removeItem('gmail_access_token');
+  const handleLogout = () => {
+    clearSession();
+    onLogout();
     navigate('/login');
   };
 
@@ -40,20 +40,20 @@ export default function Sidebar({ user }: SidebarProps) {
             <span className="text-[10px] font-bold uppercase tracking-widest">AI Status</span>
           </div>
           <p className="text-xs text-neutral-400 leading-relaxed">
-            Gemini Flash is active and monitoring your threads for threats and priority.
+            Local analysis is active and monitoring your threads for threats and priority.
           </p>
         </div>
 
         <div className="flex items-center justify-between px-2">
           <div className="flex items-center gap-3">
             <img 
-              src={user.photoURL || `https://ui-avatars.com/api/?name=${user.displayName}`} 
-              alt={user.displayName || 'User'} 
+              src={user.avatarUrl || `https://ui-avatars.com/api/?name=${user.name}`} 
+              alt={user.name || 'User'} 
               className="w-10 h-10 rounded-full border-2 border-neutral-100"
             />
             <div className="flex flex-col">
               <span className="text-sm font-bold text-neutral-900 truncate max-w-[120px]">
-                {user.displayName}
+                {user.name}
               </span>
               <span className="text-[10px] text-neutral-500 truncate max-w-[120px]">
                 {user.email}
