@@ -1,20 +1,72 @@
-import React from 'react';
-import { signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
-import { auth, googleProvider } from '../firebase';
+import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Mail, ShieldCheck, Zap } from 'lucide-react';
 import { motion } from 'motion/react';
+import { AppUser, setAccessToken, setUser } from '../lib/localData';
+import {
+  fetchGoogleUserProfile,
+  loadGoogleIdentityScript,
+  requestGoogleAccessToken,
+} from '../lib/googleAuth';
 
-export default function LoginPage() {
-  const handleLogin = async () => {
+interface LoginPageProps {
+  onLogin: (user: AppUser) => void;
+}
+
+export default function LoginPage({ onLogin }: LoginPageProps) {
+  const navigate = useNavigate();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+
+  useEffect(() => {
+    loadGoogleIdentityScript().catch((scriptError) => {
+      console.error(scriptError);
+      setError('Failed to load Google OAuth script. Refresh and try again.');
+    });
+  }, []);
+
+  const handleGoogleLogin = async () => {
+    if (!clientId) {
+      setError('Missing VITE_GOOGLE_CLIENT_ID. Set it in .env and restart dev server.');
+      return;
+    }
+
+    setError(null);
+    setLoading(true);
+
     try {
-      const result = await signInWithPopup(auth, googleProvider);
-      // Access token can be retrieved here if needed for Gmail API
-      const credential = GoogleAuthProvider.credentialFromResult(result);
-      if (credential?.accessToken) {
-        localStorage.setItem('gmail_access_token', credential.accessToken);
+      const tokenResponse = await requestGoogleAccessToken({
+        clientId,
+        prompt: 'consent',
+      });
+
+      if (!tokenResponse.access_token) {
+        throw new Error('Missing OAuth token from Google.');
       }
-    } catch (error) {
-      console.error('Login failed:', error);
+
+      const profile = await fetchGoogleUserProfile(tokenResponse.access_token);
+      if (!profile.sub || !profile.email) {
+        throw new Error('Google profile is missing required fields.');
+      }
+
+      const user: AppUser = {
+        id: profile.sub,
+        name: profile.name || profile.email,
+        email: profile.email,
+        avatarUrl: profile.picture,
+      };
+
+      setAccessToken(tokenResponse.access_token, tokenResponse.expires_in);
+      setUser(user);
+      onLogin(user);
+      navigate('/');
+    } catch (oauthError) {
+      console.error('Google OAuth processing failed:', oauthError);
+      setError('Google login failed. Please retry.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -54,15 +106,25 @@ export default function LoginPage() {
         </div>
 
         <button
-          onClick={handleLogin}
-          className="w-full flex items-center justify-center gap-3 px-6 py-4 bg-neutral-900 text-white rounded-xl font-semibold hover:bg-neutral-800 transition-all shadow-lg hover:shadow-xl active:scale-[0.98]"
+          type="button"
+          onClick={handleGoogleLogin}
+          disabled={loading}
+          className="w-full flex items-center justify-center gap-3 px-6 py-4 bg-neutral-900 text-white rounded-xl font-semibold hover:bg-neutral-800 transition-all shadow-lg hover:shadow-xl active:scale-[0.98] disabled:opacity-60"
         >
-          <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" className="w-5 h-5" />
-          Sign in with Google
+          <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-white text-neutral-900 text-xs font-bold">
+            G
+          </span>
+          {loading ? 'Connecting...' : 'Continue with Google'}
         </button>
+
+        {error && (
+          <p className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-xl px-4 py-3 text-left">
+            {error}
+          </p>
+        )}
         
         <p className="text-xs text-neutral-400">
-          By signing in, you agree to connect your Gmail account for analysis.
+          Google OAuth is used directly for Gmail access.
         </p>
       </motion.div>
     </div>

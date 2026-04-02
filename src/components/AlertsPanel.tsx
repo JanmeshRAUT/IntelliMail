@@ -1,36 +1,22 @@
 import React, { useState, useEffect } from 'react';
-import { collection, query, onSnapshot, orderBy, limit } from 'firebase/firestore';
-import { auth, db } from '../firebase';
 import { AlertTriangle, ShieldAlert, Bell, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Link } from 'react-router-dom';
-
-interface Alert {
-  id: string;
-  type: 'Threat' | 'Urgent';
-  message: string;
-  threadId: string;
-  timestamp: string;
-}
+import { Alert, getAlerts } from '../lib/localData';
 
 export default function AlertsPanel() {
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [isOpen, setIsOpen] = useState(false);
 
   useEffect(() => {
-    if (!auth.currentUser) return;
+    const syncAlerts = () => {
+      setAlerts(getAlerts().slice(0, 10));
+    };
 
-    const q = query(
-      collection(db, 'users', auth.currentUser.uid, 'alerts'),
-      orderBy('timestamp', 'desc'),
-      limit(10)
-    );
+    syncAlerts();
+    window.addEventListener('intellimail:data-updated', syncAlerts);
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      setAlerts(snapshot.docs.map(doc => doc.data() as Alert));
-    });
-
-    return () => unsubscribe();
+    return () => window.removeEventListener('intellimail:data-updated', syncAlerts);
   }, []);
 
   return (
