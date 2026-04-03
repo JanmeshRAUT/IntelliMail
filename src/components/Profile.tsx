@@ -27,6 +27,10 @@ export default function Profile() {
 
   const validateEmail = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 
+  const requiredFields = [displayName, email];
+  const optionalFields = [jobTitle, company, phone];
+  const profileScore = Math.round(((requiredFields.filter(Boolean).length + optionalFields.filter(Boolean).length) / (requiredFields.length + optionalFields.length)) * 100);
+
   const handleSave = () => {
     if (!user) return;
 
@@ -81,6 +85,12 @@ export default function Profile() {
           <div>
             <h1 className="text-3xl font-bold">Professional Profile</h1>
             <p className="text-sm text-[var(--muted-foreground)]">Keep your contact and organizational data accurate.</p>
+            <div className="mt-2 w-64">
+              <div className="h-2 bg-slate-200 rounded-full overflow-hidden">
+                <div className="h-full bg-primary-600" style={{ width: `${profileScore}%` }} />
+              </div>
+              <p className="text-xs text-[var(--muted-foreground)] mt-1">{profileScore}% complete</p>
+            </div>
           </div>
         </div>
         <button
