@@ -6,3 +6,6 @@ coverage/
 *.log
 .env*
 !.env.example
+
+# ML datasets (local only)
+ml-model/data/*.csv

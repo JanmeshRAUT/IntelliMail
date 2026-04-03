@@ -4,6 +4,8 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { google } from 'googleapis';
 import dotenv from 'dotenv';
+import { analyzeThreadEmails, analyzeMultipleThreads } from './src/lib/securityService.js';
+import type { Thread } from './src/lib/types.js';
 
 dotenv.config();
 
@@ -120,6 +122,73 @@ async function startServer() {
     } catch (error) {
       console.error('Gmail error:', error);
       res.status(500).json({ error: 'Failed to fetch emails' });
+    }
+  });
+
+  // Security Analysis Endpoint - Analyze emails in a thread for threats
+  app.post('/api/security/analyze-thread', (req, res) => {
+    const { thread } = req.body;
+
+    // Validate input
+    if (!thread || typeof thread !== 'object') {
+      return res.status(400).json({ error: 'Invalid thread data' });
+    }
+
+    if (!thread.threadId || !Array.isArray(thread.emails)) {
+      return res.status(400).json({ 
+        error: 'Thread must have threadId and emails array' 
+      });
+    }
+
+    // Validate emails array
+    const requiredEmailFields = ['id', 'threadId', 'subject', 'from', 'body', 'timestamp'];
+    const validEmails = thread.emails.every((email: any) =>
+      requiredEmailFields.every(field => field in email)
+    );
+
+    if (!validEmails) {
+      return res.status(400).json({
+        error: 'Invalid email format. Required fields: id, threadId, subject, from, body, timestamp'
+      });
+    }
+
+    try {
+      // Analyze the thread
+      const analysis = analyzeThreadEmails(thread as Thread);
+
+      res.json({
+        success: true,
+        data: analysis,
+        timestamp: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error('Security analysis error:', error);
+      res.status(500).json({ error: 'Thread security analysis failed' });
+    }
+  });
+
+  // Batch Security Analysis Endpoint - Analyze multiple threads
+  app.post('/api/security/analyze-threads', (req, res) => {
+    const { threads } = req.body;
+
+    if (!Array.isArray(threads)) {
+      return res.status(400).json({ error: 'Expected threads array' });
+    }
+
+    try {
+      const analyses = analyzeMultipleThreads(threads as Thread[]);
+
+      res.json({
+        success: true,
+        data: analyses,
+        totalThreads: analyses.length,
+        highRiskCount: analyses.filter(a => a.overallRiskLevel === 'High').length,
+        mediumRiskCount: analyses.filter(a => a.overallRiskLevel === 'Medium').length,
+        timestamp: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error('Batch security analysis error:', error);
+      res.status(500).json({ error: 'Batch thread analysis failed' });
     }
   });
 
