@@ -25,6 +25,24 @@ pipeline {
       }
     }
 
+    stage('Load Environment Variables') {
+      steps {
+        withCredentials([file(credentialsId: 'env-files', variable: 'ENV_FILE')]) {
+          script {
+            if (isUnix()) {
+              sh '''
+                cp "$ENV_FILE" .env
+              '''
+            } else {
+              bat '''
+                copy /Y "%ENV_FILE%" .env
+              '''
+            }
+          }
+        }
+      }
+    }
+
     stage('Install Dependencies') {
       steps {
         script {
