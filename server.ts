@@ -4,7 +4,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { google } from 'googleapis';
 import dotenv from 'dotenv';
-import { analyzeThreadEmails, analyzeMultipleThreads } from './src/lib/securityService.js';
+import { analyzeThreadEmailsWithMl, analyzeMultipleThreadsWithMl } from './src/lib/securityService.js';
 import type { Thread } from './src/lib/types.js';
 
 dotenv.config();
@@ -126,7 +126,7 @@ async function startServer() {
   });
 
   // Security Analysis Endpoint - Analyze emails in a thread for threats
-  app.post('/api/security/analyze-thread', (req, res) => {
+  app.post('/api/security/analyze-thread', async (req, res) => {
     const { thread } = req.body;
 
     // Validate input
@@ -154,7 +154,7 @@ async function startServer() {
 
     try {
       // Analyze the thread
-      const analysis = analyzeThreadEmails(thread as Thread);
+      const analysis = await analyzeThreadEmailsWithMl(thread as Thread);
 
       res.json({
         success: true,
@@ -168,7 +168,7 @@ async function startServer() {
   });
 
   // Batch Security Analysis Endpoint - Analyze multiple threads
-  app.post('/api/security/analyze-threads', (req, res) => {
+  app.post('/api/security/analyze-threads', async (req, res) => {
     const { threads } = req.body;
 
     if (!Array.isArray(threads)) {
@@ -176,7 +176,7 @@ async function startServer() {
     }
 
     try {
-      const analyses = analyzeMultipleThreads(threads as Thread[]);
+      const analyses = await analyzeMultipleThreadsWithMl(threads as Thread[]);
 
       res.json({
         success: true,

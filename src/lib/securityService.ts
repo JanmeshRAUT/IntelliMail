@@ -17,9 +17,23 @@ import {
 
 import type { Email, Thread, EmailSecurityAnalysis, ThreadSecuritySummary, LinkSecurityAnalysis } from './types';
 
-const ML_SERVICE_URL = import.meta.env.VITE_ML_SERVICE_URL || 'http://localhost:5000';
+const runtimeEnv = (typeof import.meta !== 'undefined' && (import.meta as any).env) ? (import.meta as any).env : {};
+const nodeEnv = typeof process !== 'undefined' && process.env ? process.env : {};
+
+function normalizeLoopbackUrl(url: string): string {
+  return url.replace('://localhost', '://127.0.0.1');
+}
+
+const ML_SERVICE_URL = normalizeLoopbackUrl(
+  runtimeEnv.VITE_ML_SERVICE_URL || nodeEnv.ML_SERVICE_URL || 'http://127.0.0.1:5000'
+);
+const LSTM_SERVICE_URL = normalizeLoopbackUrl(
+  runtimeEnv.VITE_LSTM_SERVICE_URL || nodeEnv.LSTM_SERVICE_URL || 'http://127.0.0.1:5001'
+);
 const TRUSTED_DOMAINS = ['coursera.org', 'google.com', 'microsoft.com', 'linkedin.com'];
 const SUSPICIOUS_TLDS = ['xyz', 'ru', 'tk'];
+
+type LstmPredictionBand = 'safe' | 'suspicious' | 'strong-phishing';
 
 function normalizeDomain(domain: string): string {
   return domain.toLowerCase().replace(/^www\./, '').trim();
@@ -143,6 +157,7 @@ export function analyzeThreadEmails(thread: Thread): ThreadSecuritySummary {
 
     const analysis: EmailSecurityAnalysis = {
       emailId: email.id,
+      timestamp: email.timestamp,
       sender: email.from,
       riskScore,
       riskLevel,
@@ -199,6 +214,43 @@ async function scoreUrlWithMl(url: string): Promise<{ prediction: 'phishing' | '
   }
 }
 
+async function scoreEmailWithLstm(
+  subject: string,
+  body: string
+): Promise<{ prediction: 0 | 1; confidence: number; band: LstmPredictionBand } | null> {
+  const endpoints = [`${LSTM_SERVICE_URL}/predict-email`, `${ML_SERVICE_URL}/predict-email`];
+
+  for (const endpoint of endpoints) {
+    try {
+      const response = await axios.post(
+        endpoint,
+        { text: `${subject}\n\n${body}` },
+        { timeout: 8000 }
+      );
+
+      const data = response.data as { prediction?: number; confidence?: number };
+      if ((data.prediction !== 0 && data.prediction !== 1) || typeof data.confidence !== 'number') {
+        continue;
+      }
+
+      const confidence = Math.max(0, Math.min(1, data.confidence));
+      const band: LstmPredictionBand =
+        confidence > 0.7 ? 'strong-phishing' : confidence >= 0.4 ? 'suspicious' : 'safe';
+
+      return {
+        prediction: data.prediction,
+        confidence,
+        band,
+      };
+    } catch {
+      // Try next endpoint.
+    }
+  }
+
+  console.warn('LSTM email scoring unavailable on all configured endpoints');
+  return null;
+}
+
 /**
  * Analyze a single email using local signals plus the ML URL model.
  */
@@ -208,12 +260,26 @@ async function analyzeEmailWithMl(
   index: number
 ): Promise<EmailSecurityAnalysis> {
   const links = extractLinks(email.body);
+  const threatKeywords = detectThreatKeywords(email.subject, email.body);
+  const uniqueThreatKeywords = Array.from(new Set(threatKeywords));
   const newSender = checkNewSender(email.from, previousEmails, index);
   const previousEmailBody = index > 0 ? previousEmails[index - 1]?.body : undefined;
   const toneChanged = detectToneChange(previousEmailBody, email.body);
   const domain = extractDomain(email.from);
   const suspiciousDomain = isSuspiciousDomain(domain);
   const trustedSenderDomain = isTrustedDomain(domain);
+  const lstmResult = await scoreEmailWithLstm(email.subject, email.body);
+
+  if (lstmResult) {
+    console.info(
+      '[LSTM] prediction log',
+      JSON.stringify({
+        subject: email.subject,
+        prediction: lstmResult.prediction,
+        confidence: Number(lstmResult.confidence.toFixed(4)),
+      })
+    );
+  }
 
   const linkAnalysis: LinkSecurityAnalysis[] = [];
 
@@ -246,6 +312,7 @@ async function analyzeEmailWithMl(
   }
 
   const maliciousLinks = linkAnalysis.filter((item) => item.phishingDetected);
+  const hasUrlModelPhishing = maliciousLinks.length > 0;
   const bulkEmailCandidate =
     links.length > 10 &&
     trustedSenderDomain &&
@@ -254,33 +321,49 @@ async function analyzeEmailWithMl(
     !toneChanged &&
     !suspiciousDomain;
 
+  const keywordsDetected = uniqueThreatKeywords.length > 0;
+  const linksDetected = links.length > 0;
+
+  // Blended risk strategy: rules + LSTM + URL model.
   let riskScore = 0;
+  if (keywordsDetected) riskScore += 20;
+  if (linksDetected) riskScore += 10;
+  if ((lstmResult?.confidence || 0) > 0.6) riskScore += 30;
+  if (hasUrlModelPhishing) riskScore += 30;
 
-  if (trustedSenderDomain && maliciousLinks.length === 0) {
-    riskScore -= 25;
+  if (newSender) riskScore += 10;
+  if (toneChanged) riskScore += 10;
+  if (suspiciousDomain) riskScore += 10;
+
+  // Edge-case calibration to reduce false positives from known senders.
+  if (trustedSenderDomain && (lstmResult?.confidence || 0) > 0.7) {
+    riskScore -= 10;
   }
 
-  if (maliciousLinks.length > 0) {
-    riskScore += 30;
-  } else if (bulkEmailCandidate) {
-    riskScore += 5;
+  if (bulkEmailCandidate) {
+    riskScore = Math.max(0, riskScore - 15);
   }
 
-  if (newSender) {
-    riskScore += 25;
-  }
-
-  if (toneChanged) {
-    riskScore += 15;
-  }
-
-  if (suspiciousDomain) {
-    riskScore += 20;
-  }
+  const mixedSignals =
+    trustedSenderDomain &&
+    linksDetected &&
+    !hasUrlModelPhishing &&
+    (lstmResult?.band === 'suspicious' || Boolean(threatKeywords.length));
 
   riskScore = Math.max(0, Math.min(100, riskScore));
 
-  const riskLevel = getRiskLevel(riskScore);
+  let riskLevel = getRiskLevel(riskScore);
+  if (mixedSignals && riskLevel !== 'High') {
+    riskLevel = 'Medium';
+  }
+
+  const mlExplanation = lstmResult
+    ? lstmResult.band === 'strong-phishing'
+      ? `Detected phishing-like language with ${lstmResult.confidence.toFixed(2)} confidence`
+      : lstmResult.band === 'suspicious'
+        ? `Language patterns look suspicious (${lstmResult.confidence.toFixed(2)} confidence)`
+        : `Language patterns appear safe (${lstmResult.confidence.toFixed(2)} confidence)`
+    : 'LSTM service unavailable - fallback to rule and URL signals';
 
   const legitimateConfidence = buildTrustedLegitimateConfidence(
     trustedSenderDomain,
@@ -296,24 +379,23 @@ async function analyzeEmailWithMl(
       ? `${maliciousLinks.length} malicious or mismatched link${maliciousLinks.length > 1 ? 's' : ''} detected`
       : legitimateConfidence
         ? 'Trusted domain with no malicious link indicators'
-        : generateExplanation(
-            0,
+        : `${mlExplanation}. ${generateExplanation(
+            uniqueThreatKeywords.length,
             links.length,
             newSender,
             toneChanged,
             suspiciousDomain,
             false,
-            []
-          );
-
-  const linkThreatLabels = maliciousLinks.map((item) => item.reason);
+            uniqueThreatKeywords
+          )}`;
 
   return {
     emailId: email.id,
+    timestamp: email.timestamp,
     sender: email.from,
     riskScore,
     riskLevel,
-    threats: linkThreatLabels,
+    threats: uniqueThreatKeywords,
     links,
     linkAnalysis,
     newSender,
@@ -324,6 +406,10 @@ async function analyzeEmailWithMl(
     bulkEmailCandidate,
     confidenceLabel: legitimateConfidence,
     attackType: bulkEmailCandidate ? 'Marketing / Bulk Email' : undefined,
+    lstmPrediction: lstmResult?.prediction,
+    lstmConfidence: lstmResult?.confidence,
+    lstmBand: lstmResult?.band,
+    mlExplanation,
   };
 }
 

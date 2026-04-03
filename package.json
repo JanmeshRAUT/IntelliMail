@@ -4,7 +4,9 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "tsx server.ts",
+    "dev": "node scripts/run-integrated.mjs",
+    "dev:integrated": "node scripts/run-integrated.mjs",
+    "dev:app": "tsx server.ts",
     "build": "vite build",
     "preview": "vite preview",
     "start": "node dist/server.js",

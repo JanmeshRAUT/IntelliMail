@@ -108,6 +108,14 @@ export const EmailCard: React.FC<EmailCardProps> = ({
             </div>
           )}
 
+          {(typeof email.lstmConfidence === 'number' || email.mlExplanation) && (
+            <div className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-900">
+              <span className="font-semibold">LSTM confidence:</span>{' '}
+              {typeof email.lstmConfidence === 'number' ? email.lstmConfidence.toFixed(2) : 'Unavailable'}
+              {email.mlExplanation ? <span className="ml-2">• {email.mlExplanation}</span> : null}
+            </div>
+          )}
+
           {/* Email Details */}
           <div className="grid grid-cols-2 gap-4 rounded-lg bg-gray-50 p-3">
             <div>
@@ -153,6 +161,9 @@ export const EmailCard: React.FC<EmailCardProps> = ({
             newSender={email.newSender}
             toneChanged={email.toneChanged}
             riskLevel={email.riskLevel}
+            lstmConfidence={email.lstmConfidence}
+            lstmBand={email.lstmBand}
+            mlExplanation={email.mlExplanation}
             isExpanded={explanationExpanded}
             onToggle={() => setExplanationExpanded(!explanationExpanded)}
           />
@@ -166,13 +177,18 @@ export const EmailCard: React.FC<EmailCardProps> = ({
                 { label: 'Flagged Links', value: email.linkAnalysis?.filter((link) => link.phishingDetected).length ?? email.links.length, active: (email.linkAnalysis?.filter((link) => link.phishingDetected).length ?? email.links.length) > 0 },
                 { label: 'New Sender', value: email.newSender ? 'Yes' : 'No', active: email.newSender },
                 { label: 'Tone Changed', value: email.toneChanged ? 'Yes' : 'No', active: email.toneChanged },
-                { label: 'Trusted Domain', value: email.trustedDomain ? 'Yes' : 'No', active: email.trustedDomain },
-                { label: 'Bulk Email', value: email.bulkEmailCandidate ? 'Yes' : 'No', active: email.bulkEmailCandidate },
+                { label: 'Trusted Domain', value: email.trustedDomain ? 'Yes' : 'No', active: false, positive: email.trustedDomain },
+                { label: 'Bulk Email', value: email.bulkEmailCandidate ? 'Yes' : 'No', active: false, positive: email.bulkEmailCandidate },
+                { label: 'LSTM Band', value: email.lstmBand || 'N/A', active: email.lstmBand === 'strong-phishing' || email.lstmBand === 'suspicious' },
               ].map((factor, idx) => (
                 <div
                   key={idx}
                   className={`rounded px-2 py-1 text-xs ${
-                    factor.active ? 'bg-red-100 text-red-800' : 'bg-gray-200 text-gray-700'
+                    factor.active
+                      ? 'bg-red-100 text-red-800'
+                      : factor.positive
+                        ? 'bg-emerald-100 text-emerald-800'
+                        : 'bg-gray-200 text-gray-700'
                   }`}
                 >
                   <span className="font-semibold">{factor.label}:</span> {factor.value}

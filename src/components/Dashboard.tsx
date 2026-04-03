@@ -20,7 +20,6 @@ import {
 import { requestGoogleAccessToken } from '../lib/googleAuth';
 import { SecurityDashboard } from './SecurityDashboard';
 import type { Thread as SecurityThread, Email as SecurityEmail } from '../lib/types';
-import { analyzeMultipleThreadsWithMl } from '../lib/securityService';
 
 export default function Dashboard() {
   const [threads, setThreads] = useState<Thread[]>([]);
@@ -201,6 +200,24 @@ export default function Dashboard() {
   };
 
   const securityThreads = convertToSecurityThreads();
+
+  const analyzeSecurityThreads = async (threadsToAnalyze: SecurityThread[]) => {
+    const response = await axios.post('/api/security/analyze-threads', {
+      threads: threadsToAnalyze,
+    });
+
+    const payload = response.data as {
+      success?: boolean;
+      data?: unknown;
+      error?: string;
+    };
+
+    if (!payload.success || !Array.isArray(payload.data)) {
+      throw new Error(payload.error || 'Security analysis failed');
+    }
+
+    return payload.data;
+  };
 
   return (
     <div className="flex flex-col h-screen bg-[var(--background)] text-[var(--foreground)] transition-colors duration-300">
@@ -400,7 +417,7 @@ export default function Dashboard() {
           <div className="p-8">
             <SecurityDashboard 
               threads={securityThreads}
-              onAnalyzeThreads={async (threadsToAnalyze) => analyzeMultipleThreadsWithMl(threadsToAnalyze)}
+              onAnalyzeThreads={analyzeSecurityThreads}
             />
           </div>
         )}

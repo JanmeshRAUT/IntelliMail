@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Shield, AlertTriangle, AlertCircle, CheckCircle, Zap, Loader2, ShieldCheck, Sparkles, ArrowUpRight, Mail, Layers3 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { ThreadSecuritySummary } from './ThreadSecuritySummary';
 import { SecurityTimeline } from './SecurityTimeline';
 import type { Thread, ThreadSecuritySummary as ThreadSecuritySummaryType } from '../lib/types';
@@ -9,6 +10,8 @@ interface SecurityDashboardProps {
   onAnalyzeThreads?: (threads: Thread[]) => Promise<ThreadSecuritySummaryType[]>;
 }
 
+const ANALYSIS_CACHE_KEY = 'intellimail_security_analysis_cache_v1';
+
 /**
  * Main Security Dashboard - Integrates all security analysis components with severity grouping
  */
@@ -16,32 +19,70 @@ export const SecurityDashboard: React.FC<SecurityDashboardProps> = ({
   threads,
   onAnalyzeThreads,
 }) => {
+  const navigate = useNavigate();
   const [analyses, setAnalyses] = useState<Map<string, ThreadSecuritySummaryType>>(new Map());
   const [selectedThreadId, setSelectedThreadId] = useState<string | undefined>();
   const [loading, setLoading] = useState(false);
   const [analyzing, setAnalyzing] = useState(new Set<string>());
   const [searchTerm, setSearchTerm] = useState('');
 
-  // Auto-analyze all threads when component mounts or threads change
-  useEffect(() => {
-    if (onAnalyzeThreads && threads.length > 0) {
-      analyzeAllThreads();
+  const isAnalysisStale = (thread: Thread, analysis?: ThreadSecuritySummaryType) => {
+    if (!analysis) {
+      return true;
     }
-  }, [threads.length]); // Only re-analyze when thread count changes
+    return analysis.emails.length !== thread.emails.length;
+  };
 
-  const analyzeAllThreads = async () => {
-    if (!onAnalyzeThreads || threads.length === 0) return;
+  // Restore cached analyses when returning from other pages.
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem(ANALYSIS_CACHE_KEY);
+      if (!raw) {
+        return;
+      }
+
+      const entries = JSON.parse(raw) as Array<[string, ThreadSecuritySummaryType]>;
+      setAnalyses(new Map(entries));
+    } catch {
+      // Ignore cache parse failures.
+    }
+  }, []);
+
+  // Persist analyses cache during session to avoid unnecessary re-analysis on remount.
+  useEffect(() => {
+    try {
+      const entries = Array.from(analyses.entries());
+      sessionStorage.setItem(ANALYSIS_CACHE_KEY, JSON.stringify(entries));
+    } catch {
+      // Ignore cache write failures.
+    }
+  }, [analyses]);
+
+  // Analyze only missing/stale threads to prevent repeated full re-analysis.
+  useEffect(() => {
+    if (!onAnalyzeThreads || threads.length === 0) {
+      return;
+    }
+
+    const pendingThreads = threads.filter((thread) => isAnalysisStale(thread, analyses.get(thread.threadId)));
+    if (pendingThreads.length > 0) {
+      analyzeAllThreads(pendingThreads);
+    }
+  }, [threads, analyses, onAnalyzeThreads]);
+
+  const analyzeAllThreads = async (threadsToAnalyze: Thread[]) => {
+    if (!onAnalyzeThreads || threadsToAnalyze.length === 0) return;
 
     setLoading(true);
-    setAnalyzing(new Set(threads.map(t => t.threadId)));
+    setAnalyzing(new Set(threadsToAnalyze.map(t => t.threadId)));
     
     try {
       // Analyze in batches to avoid overwhelming the server
       const batchSize = 5;
       const results: ThreadSecuritySummaryType[] = [];
       
-      for (let i = 0; i < threads.length; i += batchSize) {
-        const batch = threads.slice(i, i + batchSize);
+      for (let i = 0; i < threadsToAnalyze.length; i += batchSize) {
+        const batch = threadsToAnalyze.slice(i, i + batchSize);
         const batchResults = await onAnalyzeThreads(batch);
         results.push(...batchResults);
         
@@ -53,11 +94,13 @@ export const SecurityDashboard: React.FC<SecurityDashboardProps> = ({
         });
       }
       
-      const map = new Map<string, ThreadSecuritySummaryType>();
-      results.forEach((result) => {
-        map.set(result.threadId, result);
+      setAnalyses((prev) => {
+        const next = new Map(prev);
+        results.forEach((result) => {
+          next.set(result.threadId, result);
+        });
+        return next;
       });
-      setAnalyses(map);
     } catch (error) {
       console.error('Failed to analyze threads:', error);
     } finally {
@@ -353,6 +396,19 @@ export const SecurityDashboard: React.FC<SecurityDashboardProps> = ({
 
             {selectedAnalysis && selectedThread ? (
               <div className="space-y-6">
+                <div className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-4 shadow-sm flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--muted-foreground)]">Report Actions</p>
+                    <p className="text-sm text-[var(--muted-foreground)] mt-1">Open a structured report view for stakeholders</p>
+                  </div>
+                  <button
+                    onClick={() => navigate(`/security-report/${selectedThread.threadId}`)}
+                    className="rounded-xl bg-primary-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-primary-700"
+                  >
+                    Open Structured Report
+                  </button>
+                </div>
+
                 <ThreadSecuritySummary
                   summary={selectedAnalysis}
                   participantCount={selectedThread.participants.length}

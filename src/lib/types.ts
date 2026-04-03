@@ -19,6 +19,7 @@ export interface Thread {
 
 export interface EmailSecurityAnalysis {
   emailId: string;
+  timestamp: string;
   sender: string;
   riskScore: number;
   riskLevel: 'Low' | 'Medium' | 'High';
@@ -33,6 +34,10 @@ export interface EmailSecurityAnalysis {
   bulkEmailCandidate?: boolean;
   confidenceLabel?: string;
   attackType?: string;
+  lstmPrediction?: 0 | 1;
+  lstmConfidence?: number;
+  lstmBand?: 'safe' | 'suspicious' | 'strong-phishing';
+  mlExplanation?: string;
 }
 
 export interface ThreadSecuritySummary {

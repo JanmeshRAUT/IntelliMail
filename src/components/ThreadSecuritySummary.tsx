@@ -17,6 +17,7 @@ export const ThreadSecuritySummary: React.FC<ThreadSecuritySummaryProps> = ({
 }) => {
   const attack = classifyThreadAttack(summary);
   const attackDisplay = getAttackTypeDisplay(attack.type);
+  const showAttackClassification = summary.overallRiskLevel !== 'Low' && attack.type !== 'Unknown';
 
   const highRiskCount = summary.emails.filter((e) => e.riskLevel === 'High').length;
   const mediumRiskCount = summary.emails.filter((e) => e.riskLevel === 'Medium').length;
@@ -73,7 +74,7 @@ export const ThreadSecuritySummary: React.FC<ThreadSecuritySummaryProps> = ({
           <p className="mt-2 text-2xl font-black text-gray-900">{summary.overallRisk}/100</p>
         </div>
         <div className="rounded-xl bg-white/70 p-4 shadow-sm">
-          <p className="text-xs font-bold uppercase tracking-[0.18em] text-gray-500">Email Mix</p>
+          <p className="text-xs font-bold uppercase tracking-[0.18em] text-gray-500">Emails</p>
           <p className="mt-2 text-2xl font-black text-gray-900">{summary.emails.length}</p>
         </div>
         <div className="rounded-xl bg-white/70 p-4 shadow-sm">
@@ -83,7 +84,7 @@ export const ThreadSecuritySummary: React.FC<ThreadSecuritySummaryProps> = ({
       </div>
 
       {/* Attack Classification */}
-      {summary.overallRiskLevel !== 'Low' && (
+      {showAttackClassification && (
         <div className={`mb-6 rounded-lg px-4 py-3 font-semibold flex items-center gap-3 ${attackDisplay.color}`}>
           <span className="text-2xl">{attackDisplay.icon}</span>
           <div>
@@ -182,7 +183,7 @@ export const ThreadSecuritySummary: React.FC<ThreadSecuritySummaryProps> = ({
       <div className="mt-6 rounded-xl bg-white/70 p-4 shadow-sm">
         <p className="text-xs font-semibold uppercase text-gray-600 mb-2">Threat Assessment</p>
         <p className="text-sm font-semibold text-gray-900">{summary.threadThreatLevel}</p>
-        {summary.attackType && (
+        {summary.attackType && summary.attackType !== 'Unknown' && (
           <p className="mt-1 text-sm font-medium text-gray-700">Type: {summary.attackType}</p>
         )}
       </div>
