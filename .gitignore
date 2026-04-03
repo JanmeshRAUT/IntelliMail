@@ -10,5 +10,5 @@ coverage/
 # ML datasets (local only)
 ml-model/data/*.csv
 
-# Trained ML artifacts (local only)
-ml-model/artifacts/models/*.pkl
+# Python cache
+ml-model/__pycache__/
