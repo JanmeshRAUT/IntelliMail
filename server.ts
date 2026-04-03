@@ -46,6 +46,10 @@ async function startServer() {
     return `${sender} started "${subject}". Latest context: ${snippet}`;
   }
 
+  app.get('/health', (_req, res) => {
+    res.status(200).send('OK');
+  });
+
   // API Routes
   app.post('/api/analyze', async (req, res) => {
     const { emails } = req.body;
