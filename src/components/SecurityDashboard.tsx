@@ -20,7 +20,18 @@ export const SecurityDashboard: React.FC<SecurityDashboardProps> = ({
   onAnalyzeThreads,
 }) => {
   const navigate = useNavigate();
-  const [analyses, setAnalyses] = useState<Map<string, ThreadSecuritySummaryType>>(new Map());
+  const [analyses, setAnalyses] = useState<Map<string, ThreadSecuritySummaryType>>(() => {
+    try {
+      const raw = sessionStorage.getItem(ANALYSIS_CACHE_KEY);
+      if (!raw) {
+        return new Map();
+      }
+      const entries = JSON.parse(raw) as Array<[string, ThreadSecuritySummaryType]>;
+      return new Map(entries);
+    } catch {
+      return new Map();
+    }
+  });
   const [selectedThreadId, setSelectedThreadId] = useState<string | undefined>();
   const [loading, setLoading] = useState(false);
   const [analyzing, setAnalyzing] = useState(new Set<string>());
@@ -32,21 +43,6 @@ export const SecurityDashboard: React.FC<SecurityDashboardProps> = ({
     }
     return analysis.emails.length !== thread.emails.length;
   };
-
-  // Restore cached analyses when returning from other pages.
-  useEffect(() => {
-    try {
-      const raw = sessionStorage.getItem(ANALYSIS_CACHE_KEY);
-      if (!raw) {
-        return;
-      }
-
-      const entries = JSON.parse(raw) as Array<[string, ThreadSecuritySummaryType]>;
-      setAnalyses(new Map(entries));
-    } catch {
-      // Ignore cache parse failures.
-    }
-  }, []);
 
   // Persist analyses cache during session to avoid unnecessary re-analysis on remount.
   useEffect(() => {
