@@ -24,10 +24,15 @@ export interface EmailSecurityAnalysis {
   riskLevel: 'Low' | 'Medium' | 'High';
   threats: string[];
   links: string[];
+  linkAnalysis?: LinkSecurityAnalysis[];
   newSender: boolean;
   toneChanged: boolean;
   explanation: string;
   suspiciousIndex?: number;
+  trustedDomain?: boolean;
+  bulkEmailCandidate?: boolean;
+  confidenceLabel?: string;
+  attackType?: string;
 }
 
 export interface ThreadSecuritySummary {
@@ -38,4 +43,19 @@ export interface ThreadSecuritySummary {
   firstSuspiciousEmailIndex?: number;
   firstSuspiciousEmailId?: string;
   threadThreatLevel: string;
+  trustedDomain?: boolean;
+  bulkEmailCandidate?: boolean;
+  confidenceLabel?: string;
+  attackType?: string;
+}
+
+export interface LinkSecurityAnalysis {
+  url: string;
+  domain: string;
+  trustedDomain: boolean;
+  suspiciousTld: boolean;
+  domainMismatch: boolean;
+  phishingDetected: boolean;
+  confidence?: number;
+  reason: string;
 }

@@ -20,6 +20,7 @@ import {
 import { requestGoogleAccessToken } from '../lib/googleAuth';
 import { SecurityDashboard } from './SecurityDashboard';
 import type { Thread as SecurityThread, Email as SecurityEmail } from '../lib/types';
+import { analyzeMultipleThreadsWithMl } from '../lib/securityService';
 
 export default function Dashboard() {
   const [threads, setThreads] = useState<Thread[]>([]);
@@ -399,100 +400,7 @@ export default function Dashboard() {
           <div className="p-8">
             <SecurityDashboard 
               threads={securityThreads}
-              onAnalyzeThreads={async (threadsToAnalyze) => {
-                try {
-                  const results = threadsToAnalyze.map(thread => {
-                    // Simple fallback analysis based on email content
-                    const threatKeywords = ['verify', 'confirm', 'urgent', 'click', 'update account', 'suspicious', 'alert', 'action required'];
-                    
-                    let highRiskCount = 0;
-                    let threatCount = 0;
-
-                    const emailAnalyses = thread.emails.map((email, idx) => {
-                      const bodyLower = (email.body || '').toLowerCase();
-                      const subjectLower = (email.subject || '').toLowerCase();
-                      const combined = bodyLower + ' ' + subjectLower;
-                      
-                      // Detect threats
-                      const detectedThreats: string[] = [];
-                      if (combined.includes('verify')) detectedThreats.push('Verification request');
-                      if (combined.includes('urgent') || combined.includes('immediate')) detectedThreats.push('Urgent language');
-                      if (combined.includes('click here')) detectedThreats.push('Suspicious link');
-                      if (combined.includes('confirm') && combined.includes('account')) detectedThreats.push('Account confirmation');
-                      if (email.from && !email.from.includes(thread.participants[0]?.split('@')[1])) detectedThreats.push('Domain mismatch');
-                      
-                      // Extract links
-                      const linkRegex = /(https?:\/\/[^\s]+)/g;
-                      const links = (email.body || '').match(linkRegex) || [];
-                      
-                      // Calculate risk
-                      let riskScore = 0;
-                      riskScore += detectedThreats.length * 20;
-                      riskScore += links.length * 10;
-                      if (idx === 0 && detectedThreats.length > 0) riskScore += 10;
-                      riskScore = Math.min(100, riskScore);
-                      
-                      const riskLevel: 'Low' | 'Medium' | 'High' = 
-                        riskScore >= 60 ? 'High' : 
-                        riskScore >= 30 ? 'Medium' : 
-                        'Low';
-                      
-                      if (riskLevel === 'High') highRiskCount++;
-                      threatCount += detectedThreats.length;
-                      
-                      return {
-                        emailId: email.id,
-                        sender: email.from,
-                        riskScore,
-                        riskLevel,
-                        threats: detectedThreats,
-                        links,
-                        newSender: idx === 0,
-                        toneChanged: false,
-                        explanation: detectedThreats.length > 0 
-                          ? `Detected: ${detectedThreats.join(', ')}`
-                          : 'Email appears legitimate',
-                      };
-                    });
-
-                    // Overall thread risk
-                    const overallRisk = Math.ceil(
-                      emailAnalyses.reduce((sum, e) => sum + e.riskScore, 0) / Math.max(1, emailAnalyses.length)
-                    );
-
-                    return {
-                      threadId: thread.threadId,
-                      emails: emailAnalyses,
-                      overallRisk,
-                      overallRiskLevel: overallRisk >= 60 ? 'High' : overallRisk >= 30 ? 'Medium' : 'Low',
-                      firstSuspiciousEmailIndex: emailAnalyses.findIndex(e => e.riskLevel !== 'Low'),
-                      threadThreatLevel: `${threatCount} potential threats`,
-                    };
-                  });
-                  
-                  return results;
-                } catch (error) {
-                  console.error('Security analysis failed:', error);
-                  // Return empty analysis for all threads on error
-                  return threadsToAnalyze.map(thread => ({
-                    threadId: thread.threadId,
-                    emails: thread.emails.map((email, idx) => ({
-                      emailId: email.id,
-                      sender: email.from,
-                      riskScore: 0,
-                      riskLevel: 'Low' as const,
-                      threats: [],
-                      links: [],
-                      newSender: idx === 0,
-                      toneChanged: false,
-                      explanation: 'Analysis unavailable',
-                    })),
-                    overallRisk: 0,
-                    overallRiskLevel: 'Low' as const,
-                    threadThreatLevel: 'No threats detected',
-                  }));
-                }
-              }}
+              onAnalyzeThreads={async (threadsToAnalyze) => analyzeMultipleThreadsWithMl(threadsToAnalyze)}
             />
           </div>
         )}
