@@ -1,10 +1,10 @@
 import React from 'react';
 import { RiskBadge } from './RiskBadge';
 import { classifyThreadAttack, getAttackTypeDisplay } from '../lib/attackClassifier';
-import type { ThreadSecuritySummary } from '../lib/types';
+import type { ThreadSecuritySummary as ThreadSecuritySummaryType } from '../lib/types';
 
 interface ThreadSecuritySummaryProps {
-  summary: ThreadSecuritySummary;
+  summary: ThreadSecuritySummaryType;
   participantCount: number;
 }
 
@@ -21,6 +21,14 @@ export const ThreadSecuritySummary: React.FC<ThreadSecuritySummaryProps> = ({
   const highRiskCount = summary.emails.filter((e) => e.riskLevel === 'High').length;
   const mediumRiskCount = summary.emails.filter((e) => e.riskLevel === 'Medium').length;
   const lowRiskCount = summary.emails.filter((e) => e.riskLevel === 'Low').length;
+  const trustedSignals = summary.trustedDomain || summary.confidenceLabel === 'High (Legitimate)';
+  const recommendation = summary.overallRiskLevel === 'High'
+    ? 'Escalate and review immediately'
+    : summary.overallRiskLevel === 'Medium'
+      ? 'Monitor and verify sender intent'
+      : trustedSignals
+        ? 'No action required - trusted communication'
+        : 'Low risk - continue standard monitoring';
 
   const getHeaderColor = () => {
     switch (summary.overallRiskLevel) {
@@ -34,14 +42,22 @@ export const ThreadSecuritySummary: React.FC<ThreadSecuritySummaryProps> = ({
   };
 
   return (
-    <div className={`rounded-xl border p-6 shadow-sm ${getHeaderColor()}`}>
+    <div className={`rounded-2xl border p-6 shadow-sm ${getHeaderColor()}`}>
       {/* Header */}
-      <div className="mb-6 flex items-start justify-between">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900">Thread Security Analysis</h2>
-          <p className="mt-1 text-sm text-gray-600">
-            ThreadID: <span className="font-mono">{summary.threadId}</span>
+      <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div className="space-y-2">
+          <div className="inline-flex items-center gap-2 rounded-full bg-white/60 px-3 py-1 text-xs font-bold uppercase tracking-[0.2em] text-gray-700">
+            Security Report
+          </div>
+          <h2 className="text-2xl md:text-3xl font-black text-gray-900">Thread Security Analysis</h2>
+          <p className="text-sm text-gray-600">
+            Thread ID: <span className="font-mono">{summary.threadId}</span>
           </p>
+          <div className="flex flex-wrap gap-2">
+            {summary.confidenceLabel && <span className="rounded-full bg-white/70 px-3 py-1 text-xs font-semibold text-gray-700">{summary.confidenceLabel}</span>}
+            {summary.attackType && <span className="rounded-full bg-white/70 px-3 py-1 text-xs font-semibold text-gray-700">{summary.attackType}</span>}
+            {trustedSignals && <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-800">Trusted signal</span>}
+          </div>
         </div>
         <RiskBadge
           level={summary.overallRiskLevel}
@@ -49,6 +65,21 @@ export const ThreadSecuritySummary: React.FC<ThreadSecuritySummaryProps> = ({
           size="lg"
           showScore={true}
         />
+      </div>
+
+      <div className="mb-6 grid gap-3 md:grid-cols-3">
+        <div className="rounded-xl bg-white/70 p-4 shadow-sm">
+          <p className="text-xs font-bold uppercase tracking-[0.18em] text-gray-500">Risk Position</p>
+          <p className="mt-2 text-2xl font-black text-gray-900">{summary.overallRisk}/100</p>
+        </div>
+        <div className="rounded-xl bg-white/70 p-4 shadow-sm">
+          <p className="text-xs font-bold uppercase tracking-[0.18em] text-gray-500">Email Mix</p>
+          <p className="mt-2 text-2xl font-black text-gray-900">{summary.emails.length}</p>
+        </div>
+        <div className="rounded-xl bg-white/70 p-4 shadow-sm">
+          <p className="text-xs font-bold uppercase tracking-[0.18em] text-gray-500">Recommendation</p>
+          <p className="mt-2 text-sm font-semibold text-gray-900 leading-relaxed">{recommendation}</p>
+        </div>
       </div>
 
       {/* Attack Classification */}
@@ -66,27 +97,27 @@ export const ThreadSecuritySummary: React.FC<ThreadSecuritySummaryProps> = ({
       )}
 
       {/* Thread Summary Grid */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-6">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4 mb-6">
         {/* Total Emails */}
-        <div className="rounded-lg bg-white/50 p-4">
+        <div className="rounded-xl bg-white/70 p-4 shadow-sm">
           <p className="text-xs font-semibold uppercase text-gray-600">Total Emails</p>
           <p className="mt-2 text-3xl font-bold text-gray-900">{summary.emails.length}</p>
         </div>
 
         {/* Participants */}
-        <div className="rounded-lg bg-white/50 p-4">
+        <div className="rounded-xl bg-white/70 p-4 shadow-sm">
           <p className="text-xs font-semibold uppercase text-gray-600">Participants</p>
           <p className="mt-2 text-3xl font-bold text-gray-900">{participantCount}</p>
         </div>
 
         {/* High Risk Emails */}
-        <div className="rounded-lg bg-red-100/50 p-4">
+        <div className="rounded-xl bg-red-100/60 p-4 shadow-sm">
           <p className="text-xs font-semibold uppercase text-red-700">High Risk</p>
           <p className="mt-2 text-3xl font-bold text-red-900">{highRiskCount}</p>
         </div>
 
         {/* Medium Risk Emails */}
-        <div className="rounded-lg bg-yellow-100/50 p-4">
+        <div className="rounded-xl bg-yellow-100/60 p-4 shadow-sm">
           <p className="text-xs font-semibold uppercase text-yellow-700">Medium Risk</p>
           <p className="mt-2 text-3xl font-bold text-yellow-900">{mediumRiskCount}</p>
         </div>
@@ -95,7 +126,7 @@ export const ThreadSecuritySummary: React.FC<ThreadSecuritySummaryProps> = ({
       {/* Risk Distribution */}
       <div>
         <p className="mb-3 text-sm font-semibold text-gray-700">Risk Distribution</p>
-        <div className="flex h-8 overflow-hidden rounded-full bg-gray-200">
+        <div className="flex h-8 overflow-hidden rounded-full bg-gray-200 shadow-inner">
           {lowRiskCount > 0 && (
             <div
               className="bg-green-500"
@@ -148,9 +179,12 @@ export const ThreadSecuritySummary: React.FC<ThreadSecuritySummaryProps> = ({
       )}
 
       {/* Thread Threat Level */}
-      <div className="mt-6 rounded-lg bg-white/50 p-4">
+      <div className="mt-6 rounded-xl bg-white/70 p-4 shadow-sm">
         <p className="text-xs font-semibold uppercase text-gray-600 mb-2">Threat Assessment</p>
         <p className="text-sm font-semibold text-gray-900">{summary.threadThreatLevel}</p>
+        {summary.attackType && (
+          <p className="mt-1 text-sm font-medium text-gray-700">Type: {summary.attackType}</p>
+        )}
       </div>
     </div>
   );

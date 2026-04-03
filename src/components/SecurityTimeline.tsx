@@ -1,5 +1,6 @@
 import React from 'react';
 import { EmailCard } from './EmailCard';
+import { RiskBadge } from './RiskBadge';
 import type { ThreadSecuritySummary } from '../lib/types';
 
 interface SecurityTimelineProps {
@@ -16,26 +17,29 @@ export const SecurityTimeline: React.FC<SecurityTimelineProps> = ({
 }) => {
   if (!summary.emails || summary.emails.length === 0) {
     return (
-      <div className="rounded-lg border-2 border-dashed border-gray-300 p-8 text-center">
-        <p className="text-gray-500">No emails in this thread</p>
+      <div className="rounded-2xl border-2 border-dashed border-[var(--border)] bg-[var(--background)] p-8 text-center">
+        <p className="text-[var(--muted-foreground)]">No emails in this thread</p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       {/* Timeline Title */}
-      <div className="mb-6">
-        <h3 className="text-lg font-bold text-gray-900">Email Timeline</h3>
-        <p className="text-sm text-gray-600">
-          {summary.emails.length} email{summary.emails.length !== 1 ? 's' : ''} in this thread
-        </p>
+      <div className="flex items-end justify-between gap-4">
+        <div>
+          <h3 className="text-xl font-black tracking-tight text-[var(--foreground)]">Email Timeline</h3>
+          <p className="text-sm text-[var(--muted-foreground)]">
+            {summary.emails.length} email{summary.emails.length !== 1 ? 's' : ''} in this thread
+          </p>
+        </div>
+        <RiskBadge level={summary.overallRiskLevel} score={summary.overallRisk} size="sm" />
       </div>
 
       {/* Timeline Container */}
-      <div className="relative space-y-3">
+      <div className="relative space-y-4">
         {/* Timeline Line */}
-        <div className="absolute left-6 top-0 bottom-0 w-1 bg-gradient-to-b from-gray-300 to-gray-100" />
+        <div className="absolute left-6 top-0 bottom-0 w-1 bg-gradient-to-b from-[var(--border)] via-primary-200 to-[var(--border)]" />
 
         {/* Email Cards */}
         {summary.emails.map((email, index) => {
@@ -80,8 +84,8 @@ export const SecurityTimeline: React.FC<SecurityTimelineProps> = ({
       </div>
 
       {/* Summary Footer */}
-      <div className="mt-8 rounded-lg border border-gray-200 bg-gray-50 p-4">
-        <p className="text-sm text-gray-600">
+      <div className="mt-8 rounded-2xl border border-[var(--border)] bg-[var(--card)] p-5 shadow-sm">
+        <p className="text-sm text-[var(--muted-foreground)]">
           {summary.firstSuspiciousEmailIndex !== undefined ? (
             <>
               Suspicious activity detected starting at email #
