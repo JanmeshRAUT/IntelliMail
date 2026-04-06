@@ -53,7 +53,7 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
             <div className="relative shrink-0">
               <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-primary-500/30 ring-2 ring-primary-500/10 transition-transform group-hover:scale-110 shadow-md">
                 <img 
-                  src={user.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name)}&background=2563eb&color=ffffff&bold=true&size=80`} 
+                  src={user.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name)}&background=2563eb&color=ffffff&bold=true&size=80`} 
                   alt={user.name || 'User'} 
                   className="w-full h-full object-cover"
                   referrerPolicy="no-referrer"

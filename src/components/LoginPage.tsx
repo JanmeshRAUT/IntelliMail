@@ -52,10 +52,9 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
       }
 
       const user: AppUser = {
-        id: profile.sub,
         name: profile.name || profile.email,
         email: profile.email,
-        avatarUrl: profile.picture,
+        avatar: profile.picture,
       };
 
       setAccessToken(tokenResponse.access_token, tokenResponse.expires_in);
