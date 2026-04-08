@@ -1,21 +1,23 @@
 pipeline {
   agent any
 
-  tools {
-    nodejs "node18"
-  }
-
   options {
     timestamps()
     disableConcurrentBuilds()
   }
 
   parameters {
-    booleanParam(name: 'RUN_INTEGRATED_STACK_CHECK', defaultValue: false, description: 'Start npm run dev and verify app + ML APIs health endpoints')
+    string(name: 'APP_URL', defaultValue: '', description: 'Public app URL injected into docker compose env')
+    string(name: 'ENV_FILE_CREDENTIALS_ID', defaultValue: 'env-files', description: 'Jenkins file credential ID for .env (leave empty to auto-generate minimal .env)')
+    booleanParam(name: 'REBUILD_IMAGES', defaultValue: true, description: 'Rebuild images before starting containers')
+    booleanParam(name: 'RUN_SMOKE_TESTS', defaultValue: true, description: 'Run post-deploy smoke checks')
+    booleanParam(name: 'TEARDOWN_AFTER_DEPLOY', defaultValue: false, description: 'Stop and remove containers after successful verification')
   }
 
   environment {
     CI = 'true'
+    COMPOSE_FILE = 'docker-compose.yml'
+    COMPOSE_PROJECT_NAME = 'intellimail'
   }
 
   stages {
@@ -25,17 +27,29 @@ pipeline {
       }
     }
 
-    stage('Load Environment Variables') {
+    stage('Prepare Environment File') {
       steps {
-        withCredentials([file(credentialsId: 'env-files', variable: 'ENV_FILE')]) {
-          script {
+        script {
+          def credentialId = (params.ENV_FILE_CREDENTIALS_ID ?: '').trim()
+
+          if (credentialId) {
+            withCredentials([file(credentialsId: credentialId, variable: 'ENV_FILE')]) {
+              if (isUnix()) {
+                sh 'cp "$ENV_FILE" .env'
+              } else {
+                bat 'copy /Y "%ENV_FILE%" .env'
+              }
+            }
+          } else {
             if (isUnix()) {
               sh '''
-                cp "$ENV_FILE" .env
+                cat > .env <<EOF
+APP_URL=${APP_URL}
+EOF
               '''
             } else {
               bat '''
-                copy /Y "%ENV_FILE%" .env
+                > .env echo APP_URL=%APP_URL%
               '''
             }
           }
@@ -43,135 +57,110 @@ pipeline {
       }
     }
 
-    stage('Install Dependencies') {
-      steps {
-        script {
-          if (isUnix()) {
-            sh 'npm ci || npm install'
-          } else {
-            bat 'call npm ci || call npm install'
-          }
-        }
-      }
-    }
-
-    stage('Type Check') {
-      steps {
-        script {
-          if (isUnix()) {
-            sh 'npm run lint'
-          } else {
-            bat 'call npm run lint'
-          }
-        }
-      }
-    }
-
-    stage('Build') {
-      steps {
-        script {
-          if (isUnix()) {
-            sh 'npm run build'
-          } else {
-            bat 'call npm run build'
-          }
-        }
-      }
-    }
-
-    stage('Prepare ML Python Environment') {
-      when {
-        expression { return params.RUN_INTEGRATED_STACK_CHECK }
-      }
+    stage('Validate Docker Tooling') {
       steps {
         script {
           if (isUnix()) {
             sh '''
-              cd ml-model
-              python3 -m venv .venv
-              . .venv/bin/activate
-              python -m pip install --upgrade pip
-              pip install -r requirements.txt
+              docker --version
+              docker compose version
             '''
           } else {
             bat '''
-              cd ml-model
-              py -3 -m venv .venv
-              call .venv\Scripts\activate
-              python -m pip install --upgrade pip
-              pip install -r requirements.txt
+              docker --version
+              docker compose version
             '''
           }
         }
       }
     }
 
-    stage('Integrated Stack Check') {
+    stage('Deploy With Docker Compose') {
+      steps {
+        script {
+          if (isUnix()) {
+            if (params.REBUILD_IMAGES) {
+              sh 'APP_URL="${APP_URL}" docker compose -f "${COMPOSE_FILE}" up -d --build --remove-orphans'
+            } else {
+              sh 'APP_URL="${APP_URL}" docker compose -f "${COMPOSE_FILE}" up -d --remove-orphans'
+            }
+          } else {
+            if (params.REBUILD_IMAGES) {
+              bat 'set "APP_URL=%APP_URL%" && docker compose -f "%COMPOSE_FILE%" up -d --build --remove-orphans'
+            } else {
+              bat 'set "APP_URL=%APP_URL%" && docker compose -f "%COMPOSE_FILE%" up -d --remove-orphans'
+            }
+          }
+        }
+      }
+    }
+
+    stage('Smoke Test Deployment') {
       when {
-        expression { return params.RUN_INTEGRATED_STACK_CHECK }
+        expression { return params.RUN_SMOKE_TESTS }
       }
       steps {
         script {
           if (isUnix()) {
             sh '''
-              # Cleanup stale listeners on known service ports.
-              for port in 3000 5000 5001 24678; do
-                if command -v lsof >/dev/null 2>&1; then
-                  pids=$(lsof -ti tcp:$port || true)
-                  if [ -n "$pids" ]; then
-                    kill -9 $pids || true
-                  fi
-                fi
-              done
-
-              npm run dev > integrated-dev.log 2>&1 &
-              DEV_PID=$!
-
-              cleanup() {
-                kill $DEV_PID 2>/dev/null || true
-                pkill -f "run-integrated.mjs" || true
-                pkill -f "python" || true
-              }
-              trap cleanup EXIT
-
-              # Give services time to boot before probing.
-              sleep 5
-
-              for i in $(seq 1 120); do
-                if curl -fsS http://127.0.0.1:3000/health >/dev/null \
-                  && curl -fsS http://127.0.0.1:5000/health >/dev/null \
-                  && curl -fsS http://127.0.0.1:5001/health >/dev/null; then
-                  echo "Integrated stack is healthy"
-                  exit 0
+              set -e
+              for i in $(seq 1 30); do
+                if curl -fsS http://127.0.0.1:3000/health >/dev/null; then
+                  break
                 fi
                 sleep 2
               done
 
-              echo "Integrated stack failed health check"
-              tail -n 200 integrated-dev.log || true
-              exit 1
+              curl -fsS http://127.0.0.1:3000/health
+              curl -fsS -X POST http://127.0.0.1:5000/predict-url \
+                -H "Content-Type: application/json" \
+                -d '{"url":"https://example.com"}'
             '''
           } else {
             bat '''
-              powershell -NoProfile -Command "$ErrorActionPreference = 'Stop'; $log='integrated-dev.log'; foreach ($port in 3000,5000,5001,24678) { $pids = Get-NetTCPConnection -LocalPort $port -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess -Unique; foreach ($pid in $pids) { if ($pid -and $pid -ne 0) { Stop-Process -Id $pid -Force -ErrorAction SilentlyContinue } } }; if (Test-Path $log) { Remove-Item $log -Force }; $p = Start-Process -FilePath 'cmd.exe' -ArgumentList '/c npm run dev' -RedirectStandardOutput $log -RedirectStandardError $log -PassThru; try { Start-Sleep -Seconds 5; $ok=$false; for ($i=0; $i -lt 120; $i++) { try { Invoke-WebRequest -UseBasicParsing http://127.0.0.1:3000/health | Out-Null; Invoke-WebRequest -UseBasicParsing http://127.0.0.1:5000/health | Out-Null; Invoke-WebRequest -UseBasicParsing http://127.0.0.1:5001/health | Out-Null; $ok=$true; break } catch {}; Start-Sleep -Seconds 2 }; if (-not $ok) { if (Test-Path $log) { Get-Content $log -Tail 200 }; throw 'Integrated stack failed health check' } else { Write-Output 'Integrated stack is healthy' } } finally { if (-not $p.HasExited) { cmd /c taskkill /PID $($p.Id) /T /F >nul 2>&1 }; foreach ($port in 3000,5000,5001,24678) { $pids = Get-NetTCPConnection -LocalPort $port -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess -Unique; foreach ($pid in $pids) { if ($pid -and $pid -ne 0) { Stop-Process -Id $pid -Force -ErrorAction SilentlyContinue } } } }"
+              powershell -NoProfile -Command "$ErrorActionPreference = 'Stop'; for ($i=0; $i -lt 30; $i++) { try { Invoke-WebRequest -UseBasicParsing http://127.0.0.1:3000/health | Out-Null; break } catch { Start-Sleep -Seconds 2 } }; Invoke-WebRequest -UseBasicParsing http://127.0.0.1:3000/health | Out-Null; Invoke-WebRequest -UseBasicParsing -Method Post -Uri http://127.0.0.1:5000/predict-url -ContentType 'application/json' -Body '{\"url\":\"https://example.com\"}' | Out-Null"
             '''
           }
         }
       }
     }
 
-    stage('Archive Frontend Build') {
+    stage('Compose Status') {
       steps {
-        archiveArtifacts artifacts: 'dist/**', fingerprint: true, onlyIfSuccessful: true
+        script {
+          if (isUnix()) {
+            sh 'docker compose -f "${COMPOSE_FILE}" ps'
+          } else {
+            bat 'docker compose -f "%COMPOSE_FILE%" ps'
+          }
+        }
       }
     }
 
+    stage('Teardown') {
+      when {
+        expression { return params.TEARDOWN_AFTER_DEPLOY }
+      }
+      steps {
+        script {
+          if (isUnix()) {
+            sh 'docker compose -f "${COMPOSE_FILE}" down --remove-orphans'
+          } else {
+            bat 'docker compose -f "%COMPOSE_FILE%" down --remove-orphans'
+          }
+        }
+      }
+    }
   }
 
   post {
-    always {
+    failure {
       script {
-        deleteDir()
+        if (isUnix()) {
+          sh 'docker compose -f "${COMPOSE_FILE}" logs --tail 200 || true'
+        } else {
+          bat 'docker compose -f "%COMPOSE_FILE%" logs --tail 200'
+        }
       }
     }
   }

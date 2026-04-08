@@ -1,4 +1,4 @@
-version: '3.8'
+version: "3.9"
 services:
   app:
     build:
@@ -8,5 +8,17 @@ services:
       - "3000:3000"
     environment:
       - NODE_ENV=production
+      - ML_SERVICE_URL=http://api:5000
+      - LSTM_SERVICE_URL=http://api:5000
       - APP_URL=${APP_URL}
+    depends_on:
+      - api
+    restart: always
+
+  api:
+    build:
+      context: .
+      dockerfile: docker/api.Dockerfile
+    ports:
+      - "5000:5000"
     restart: always
