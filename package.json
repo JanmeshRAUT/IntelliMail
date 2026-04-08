@@ -7,10 +7,10 @@
     "dev": "node scripts/run-integrated.mjs",
     "dev:integrated": "node scripts/run-integrated.mjs",
     "dev:app": "tsx server.ts",
-    "build": "vite build",
+    "build": "vite build && tsc",
     "preview": "vite preview",
-    "start": "node dist/server.js",
-    "clean": "rm -rf dist",
+    "start": "tsx server.ts",
+    "clean": "rimraf dist",
     "lint": "tsc --noEmit"
   },
   "dependencies": {

@@ -1,70 +1,74 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
 @import "tailwindcss";
 
 @theme {
-  --color-primary-50: #eff6ff;
-  --color-primary-100: #dbeafe;
-  --color-primary-200: #bfdbfe;
-  --color-primary-300: #93c5fd;
-  --color-primary-400: #60a5fa;
-  --color-primary-500: #3b82f6;
-  --color-primary-600: #2563eb;
-  --color-primary-700: #1d4ed8;
-  --color-primary-800: #1e40af;
-  --color-primary-900: #1e3a8a;
-  --color-primary-950: #172554;
+  --color-primary-50: #f0f7ff;
+  --color-primary-100: #e0effe;
+  --color-primary-200: #bae0fd;
+  --color-primary-300: #7cc7fb;
+  --color-primary-400: #38a9f8;
+  --color-primary-500: #0e8ce9;
+  --color-primary-600: #026dc6;
+  --color-primary-700: #0357a1;
+  --color-primary-800: #074a85;
+  --color-primary-900: #0c3f6e;
+  --color-primary-950: #082849;
 }
 
 :root {
-  --background: #f8fafc;
-  --foreground: #0f172a;
+  --background: #fdfdfe;
+  --foreground: #020617;
   --card: #ffffff;
-  --card-foreground: #0f172a;
+  --card-foreground: #020617;
   --popover: #ffffff;
-  --popover-foreground: #0f172a;
-  --primary: #2563eb;
-  --primary-foreground: #f8fafc;
+  --popover-foreground: #020617;
+  --primary: #026dc6;
+  --primary-foreground: #ffffff;
   --secondary: #f1f5f9;
   --secondary-foreground: #0f172a;
-  --muted: #f1f5f9;
+  --muted: #f8fafc;
   --muted-foreground: #64748b;
   --accent: #f1f5f9;
   --accent-foreground: #0f172a;
   --destructive: #ef4444;
-  --destructive-foreground: #f8fafc;
+  --destructive-foreground: #ffffff;
   --border: #e2e8f0;
-  --input: #e2e8f0;
-  --ring: #2563eb;
-  --radius: 0.75rem;
+  --input: #f1f5f9;
+  --ring: #0e8ce9;
+  --radius: 1rem;
 
-  font-family: "Inter", ui-sans-serif, system-ui, sans-serif;
+  font-family: "Outfit", ui-sans-serif, system-ui, sans-serif;
 }
 
 .dark {
-  --background: #020617;
+  --background: #02040a;
   --foreground: #f8fafc;
-  --card: #0f172a;
+  --card: #0b1120;
   --card-foreground: #f8fafc;
-  --popover: #020617;
+  --popover: #0b1120;
   --popover-foreground: #f8fafc;
-  --primary: #3b82f6;
-  --primary-foreground: #020617;
-  --secondary: #1e293b;
+  --primary: #38a9f8;
+  --primary-foreground: #02040a;
+  --secondary: #161e2d;
   --secondary-foreground: #f8fafc;
-  --muted: #1e293b;
+  --muted: #161e2d;
   --muted-foreground: #94a3b8;
   --accent: #1e293b;
   --accent-foreground: #f8fafc;
-  --destructive: #7f1d1d;
+  --destructive: #991b1b;
   --destructive-foreground: #f8fafc;
   --border: #1e293b;
   --input: #1e293b;
-  --ring: #3b82f6;
+  --ring: #38a9f8;
 }
 
 * {
   border-color: var(--border);
-  transition: background-color 0.4s ease, border-color 0.4s ease, color 0.4s ease, shadow 0.4s ease;
+  transition: background-color 0.4s cubic-bezier(0.4, 0, 0.2, 1), 
+              border-color 0.4s cubic-bezier(0.4, 0, 0.2, 1), 
+              color 0.4s cubic-bezier(0.4, 0, 0.2, 1), 
+              box-shadow 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+              transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 body {
@@ -74,14 +78,15 @@ body {
   -moz-osx-font-smoothing: grayscale;
   min-height: 100vh;
   letter-spacing: -0.01em;
+  overflow-x: hidden;
 }
 
 .glass-card {
-  @apply bg-white/80 backdrop-blur-md border border-white/20 shadow-xl;
+  @apply bg-white/70 backdrop-blur-xl border border-white/40 shadow-2xl;
 }
 
 .dark .glass-card {
-  @apply bg-slate-900/60 backdrop-blur-md border border-white/10 shadow-2xl;
+  @apply bg-slate-950/40 backdrop-blur-xl border border-white/5 shadow-[0_0_50px_-12px_rgba(0,0,0,0.5)];
 }
 
 /* Custom Utilities for better UI */
@@ -92,12 +97,39 @@ body {
 
 /* Improving button feedback */
 button {
-  @apply transition-all duration-200 active:scale-95;
+  @apply transition-all duration-200 active:scale-95 cursor-pointer;
 }
 
 /* Smooth Scroll */
 html {
   scroll-behavior: smooth;
 }
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-slate-200 rounded-full border-4 border-transparent bg-clip-padding;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  @apply bg-slate-800;
+}
+
+/* Gradients */
+.gradient-primary {
+  background: linear-gradient(135deg, var(--color-primary-600) 0%, var(--color-primary-400) 100%);
+}
+
+.dark .gradient-primary {
+  background: linear-gradient(135deg, var(--color-primary-500) 0%, var(--color-primary-300) 100%);
+}
+
 
 
