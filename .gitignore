@@ -7,8 +7,13 @@ coverage/
 .env*
 !.env.example
 
-# ML datasets (local only)
-ml-model/data/*.csv
+# ML datasets and large files (local only, never commit)
+ml-model/data/
+ml-model/*.csv
+ml-model/artifacts/graphs/
+ml-model/.venv/
 
 # Python cache
 ml-model/__pycache__/
+*.pyc
+.pytest_cache/
