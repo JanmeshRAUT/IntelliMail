@@ -21,4 +21,10 @@ services:
       dockerfile: docker/api.Dockerfile
     ports:
       - "5000:5000"
+      - "5001:5001"
     restart: always
+    healthcheck:
+      test: ["CMD", "python", "-c", "import socket; s=socket.socket(); s.connect(('localhost', 5000)); s.close()"]
+      interval: 30s
+      timeout: 3s
+      retries: 3

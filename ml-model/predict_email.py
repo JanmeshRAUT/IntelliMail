@@ -29,7 +29,10 @@ def _resolve_model_path() -> Path:
     for candidate in candidates:
         if candidate.exists():
             return candidate
-    raise FileNotFoundError("LSTM model file not found in expected locations")
+    raise FileNotFoundError(
+        "LSTM model file not found. Expected one of: "
+        "artifacts/models/lstm_model.h5, lstm_model.h5, artifacts/lstm_model/lstm_phishing_model.h5"
+    )
 
 
 def _resolve_tokenizer_path() -> Path:
@@ -41,14 +44,22 @@ def _resolve_tokenizer_path() -> Path:
     for candidate in candidates:
         if candidate.exists():
             return candidate
-    raise FileNotFoundError("Tokenizer file not found in expected locations")
+    raise FileNotFoundError(
+        "Tokenizer file not found. Expected one of: "
+        "artifacts/models/tokenizer.pkl, tokenizer.pkl, artifacts/lstm_model/tokenizer.pkl"
+    )
 
 
 def _load_assets() -> tuple[Any, Any]:
     global _MODEL, _TOKENIZER
 
     # Import TensorFlow only when needed so service startup remains fast.
-    from tensorflow.keras.models import load_model
+    try:
+        from tensorflow.keras.models import load_model
+    except ImportError as err:
+        raise RuntimeError(
+            "TensorFlow not available. Install requirements-prod.txt or requirements.txt"
+        ) from err
 
     if _MODEL is None:
         _MODEL = load_model(_resolve_model_path())
@@ -61,7 +72,12 @@ def _load_assets() -> tuple[Any, Any]:
 
 
 def predict_email_text(text: str) -> Dict[str, Any]:
-    from tensorflow.keras.preprocessing.sequence import pad_sequences
+    try:
+        from tensorflow.keras.preprocessing.sequence import pad_sequences
+    except ImportError as err:
+        raise RuntimeError(
+            "TensorFlow not available. Install requirements-prod.txt or requirements.txt"
+        ) from err
 
     model, tokenizer = _load_assets()
 

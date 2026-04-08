@@ -1,14 +1,9 @@
-node_modules/
-build/
-dist/
-coverage/
-.DS_Store
+node_modules
+.git
+.gitignore
+Dockerfile
+docker-compose.yml
 *.log
-.env*
-!.env.example
-
-# ML datasets (local only)
-ml-model/data/*.csv
-
-# Python cache
-ml-model/__pycache__/
+.env
+dist
+ml-model/__pycache__

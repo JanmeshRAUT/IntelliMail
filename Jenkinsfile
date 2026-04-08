@@ -16,8 +16,6 @@ pipeline {
   environment {
     COMPOSE_FILE = 'docker-compose.yml'
     COMPOSE_PROJECT_NAME = 'intellimail'
-
-    // 🔥 FORCE DOCKER PATH
     DOCKER = '"C:\\Program Files\\Docker\\Docker\\resources\\bin\\docker.exe"'
   }
 
@@ -29,9 +27,18 @@ pipeline {
       }
     }
 
-    stage('Prepare .env') {
+    // 🔥 FIXED ENV LOADING
+    stage('Load .env from Jenkins') {
       steps {
-        bat 'echo APP_URL=%APP_URL% > .env'
+        withCredentials([file(credentialsId: 'env-files', variable: 'ENV_FILE')]) {
+          bat '''
+            echo Copying .env from Jenkins credentials...
+            copy "%ENV_FILE%" .env
+
+            echo ===== ENV LOADED =====
+            type .env
+          '''
+        }
       }
     }
 
