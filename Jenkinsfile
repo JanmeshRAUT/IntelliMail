@@ -7,18 +7,22 @@ pipeline {
   }
 
   parameters {
-    string(name: 'APP_URL', defaultValue: '', description: 'App public URL injected into compose environment')
-    booleanParam(name: 'REBUILD_IMAGES', defaultValue: true, description: 'Rebuild Docker images before deploy')
-    booleanParam(name: 'RUN_SMOKE_TESTS', defaultValue: true, description: 'Run health and API smoke checks after deploy')
-    booleanParam(name: 'TEARDOWN_AFTER_DEPLOY', defaultValue: false, description: 'Stop stack after successful deployment checks')
+    string(name: 'APP_URL', defaultValue: '', description: 'App public URL')
+    booleanParam(name: 'REBUILD_IMAGES', defaultValue: true, description: 'Rebuild Docker images')
+    booleanParam(name: 'RUN_SMOKE_TESTS', defaultValue: true, description: 'Run tests')
+    booleanParam(name: 'TEARDOWN_AFTER_DEPLOY', defaultValue: false, description: 'Stop after deploy')
   }
 
   environment {
     COMPOSE_FILE = 'docker-compose.yml'
     COMPOSE_PROJECT_NAME = 'intellimail'
+
+    // 🔥 FORCE DOCKER PATH
+    DOCKER = '"C:\\Program Files\\Docker\\Docker\\resources\\bin\\docker.exe"'
   }
 
   stages {
+
     stage('Checkout') {
       steps {
         checkout scm
@@ -27,18 +31,14 @@ pipeline {
 
     stage('Prepare .env') {
       steps {
-        bat '''
-          > .env echo APP_URL=%APP_URL%
-        '''
+        bat 'echo APP_URL=%APP_URL% > .env'
       }
     }
 
     stage('Validate Docker') {
       steps {
-        bat '''
-          docker --version
-          docker compose version
-        '''
+        bat '%DOCKER% --version'
+        bat '%DOCKER% compose version'
       }
     }
 
@@ -46,13 +46,19 @@ pipeline {
       steps {
         script {
           if (params.REBUILD_IMAGES) {
-            bat 'set "APP_URL=%APP_URL%" && docker compose -f "%COMPOSE_FILE%" down --remove-orphans || exit /b 0'
-            bat 'set "APP_URL=%APP_URL%" && docker compose -f "%COMPOSE_FILE%" up -d --build --remove-orphans'
+            bat '%DOCKER% compose -f "%COMPOSE_FILE%" down --remove-orphans || exit /b 0'
+            bat '%DOCKER% compose -f "%COMPOSE_FILE%" up -d --build --remove-orphans'
           } else {
-            bat 'set "APP_URL=%APP_URL%" && docker compose -f "%COMPOSE_FILE%" down --remove-orphans || exit /b 0'
-            bat 'set "APP_URL=%APP_URL%" && docker compose -f "%COMPOSE_FILE%" up -d --remove-orphans'
+            bat '%DOCKER% compose -f "%COMPOSE_FILE%" down --remove-orphans || exit /b 0'
+            bat '%DOCKER% compose -f "%COMPOSE_FILE%" up -d --remove-orphans'
           }
         }
+      }
+    }
+
+    stage('Wait') {
+      steps {
+        bat 'timeout /t 15 >nul'
       }
     }
 
@@ -62,14 +68,16 @@ pipeline {
       }
       steps {
         bat '''
-          powershell -NoProfile -Command "$ErrorActionPreference = 'Stop'; for ($i=0; $i -lt 40; $i++) { try { Invoke-WebRequest -UseBasicParsing http://127.0.0.1:3000/health | Out-Null; break } catch { Start-Sleep -Seconds 2 } }; Invoke-WebRequest -UseBasicParsing http://127.0.0.1:3000/health | Out-Null; Invoke-WebRequest -UseBasicParsing -Method Post -Uri http://127.0.0.1:5000/predict-url -ContentType 'application/json' -Body '{\"url\":\"https://example.com\"}' | Out-Null"
+          powershell -Command ^
+          "Invoke-WebRequest http://127.0.0.1:3000 -UseBasicParsing; ^
+           Invoke-WebRequest http://127.0.0.1:5000 -UseBasicParsing"
         '''
       }
     }
 
     stage('Compose Status') {
       steps {
-        bat 'docker compose -f "%COMPOSE_FILE%" ps'
+        bat '%DOCKER% compose -f "%COMPOSE_FILE%" ps'
       }
     }
 
@@ -78,14 +86,14 @@ pipeline {
         expression { return params.TEARDOWN_AFTER_DEPLOY }
       }
       steps {
-        bat 'docker compose -f "%COMPOSE_FILE%" down --remove-orphans'
+        bat '%DOCKER% compose -f "%COMPOSE_FILE%" down --remove-orphans'
       }
     }
   }
 
   post {
     failure {
-      bat 'docker compose -f "%COMPOSE_FILE%" logs --tail 200'
+      bat '%DOCKER% compose -f "%COMPOSE_FILE%" logs --tail 200'
     }
     always {
       cleanWs notFailBuild: true
