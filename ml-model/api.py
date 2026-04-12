@@ -7,6 +7,11 @@ from flask import Flask, jsonify, request
 app = Flask(__name__)
 
 
+@app.route("/health")
+def health():
+    return {"status": "ok"}, 200
+
+
 @app.route("/predict-url", methods=["POST"])
 def predict_url_endpoint():
     data = request.get_json(silent=True) or {}
