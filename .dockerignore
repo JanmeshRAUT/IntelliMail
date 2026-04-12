@@ -1,9 +1,12 @@
 node_modules
 .git
 .gitignore
-Dockerfile
-docker-compose.yml
-*.log
 .env
-dist
-ml-model/__pycache__
+__pycache__
+*.pyc
+*.pyo
+*.log
+data/
+datasets/
+# Keep commented unless model files are definitely not required at runtime.
+# *.h5
