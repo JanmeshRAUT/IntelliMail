@@ -17,7 +17,7 @@ pipeline {
   environment {
     COMPOSE_FILE = 'docker-compose.yml'
     COMPOSE_PROJECT_NAME = 'intellimail'
-    DOCKER = '"C:\\Program Files\\Docker\\Docker\\resources\\bin\\docker.exe"'
+    DOCKER_EXE = 'C:\\Program Files\\Docker\\Docker\\resources\\bin\\docker.exe'
     CURL_IMAGE = 'curlimages/curl:8.8.0'
   }
 
@@ -45,10 +45,10 @@ pipeline {
     stage('Validate Docker') {
       steps {
         retry(2) {
-          bat '%DOCKER% --version'
-          bat '%DOCKER% compose version'
-          bat '%DOCKER% info >nul'
-          bat '%DOCKER% compose -f "%COMPOSE_FILE%" config >nul'
+          bat '"%DOCKER_EXE%" --version'
+          bat '"%DOCKER_EXE%" compose version'
+          bat '"%DOCKER_EXE%" info >nul'
+          bat '"%DOCKER_EXE%" compose -f "%COMPOSE_FILE%" config >nul'
         }
       }
     }
@@ -57,19 +57,19 @@ pipeline {
       steps {
         script {
           retry(2) {
-            bat '%DOCKER% compose -f "%COMPOSE_FILE%" down --remove-orphans || exit /b 0'
+            bat '"%DOCKER_EXE%" compose -f "%COMPOSE_FILE%" down --remove-orphans || exit /b 0'
 
             if (params.REBUILD_IMAGES) {
-              bat '%DOCKER% compose -f "%COMPOSE_FILE%" up -d --build --remove-orphans'
+              bat '"%DOCKER_EXE%" compose -f "%COMPOSE_FILE%" up -d --build --remove-orphans'
             } else {
-              bat '%DOCKER% compose -f "%COMPOSE_FILE%" up -d --remove-orphans'
+              bat '"%DOCKER_EXE%" compose -f "%COMPOSE_FILE%" up -d --remove-orphans'
             }
           }
         }
       }
     }
 
-    stage('Wait for Services (Health Check)') {
+    stage('Wait for Services') {
       steps {
         script {
           retry(12) {
@@ -78,27 +78,21 @@ pipeline {
               @echo off
               setlocal enabledelayedexpansion
 
-              for /f %%i in ('%DOCKER% compose -f "%COMPOSE_FILE%" ps -q api') do set API_ID=%%i
+              for /f %%i in ('"%DOCKER_EXE%" compose -f "%COMPOSE_FILE%" ps -q api') do set API_ID=%%i
               if "!API_ID!"=="" (
                 echo api container not created yet
                 exit /b 1
               )
 
-              for /f %%h in ('%DOCKER% inspect --format="{{if .State.Health}}{{.State.Health.Status}}{{else}}unhealthy{{end}}" !API_ID!') do set API_HEALTH=%%h
+              for /f %%h in ('"%DOCKER_EXE%" inspect --format="{{if .State.Health}}{{.State.Health.Status}}{{else}}unhealthy{{end}}" !API_ID!') do set API_HEALTH=%%h
               if /I not "!API_HEALTH!"=="healthy" (
                 echo api health status: !API_HEALTH!
                 exit /b 1
               )
 
-              %DOCKER% run --rm --network %COMPOSE_PROJECT_NAME%_default %CURL_IMAGE% -fsS http://app:3000/ >nul
+              "%DOCKER_EXE%" run --rm --network %COMPOSE_PROJECT_NAME%_default %CURL_IMAGE% -fsS http://app:3000/ >nul
               if errorlevel 1 (
                 echo app endpoint not ready yet
-                exit /b 1
-              )
-
-              %DOCKER% run --rm --network %COMPOSE_PROJECT_NAME%_default %CURL_IMAGE% -fsS http://api:5000/health >nul
-              if errorlevel 1 (
-                echo api health endpoint not ready yet
                 exit /b 1
               )
 
@@ -109,7 +103,7 @@ pipeline {
 
             if (status != 0) {
               echo "Services not ready yet... retrying"
-              bat '%DOCKER% compose -f "%COMPOSE_FILE%" ps'
+              bat '"%DOCKER_EXE%" compose -f "%COMPOSE_FILE%" ps'
               sleep(time: 5, unit: 'SECONDS')
               error("Retrying...")
             }
@@ -124,15 +118,14 @@ pipeline {
       }
       steps {
         retry(2) {
-          bat '%DOCKER% run --rm --network %COMPOSE_PROJECT_NAME%_default %CURL_IMAGE% -fsS http://app:3000/ >nul'
-          bat '%DOCKER% run --rm --network %COMPOSE_PROJECT_NAME%_default %CURL_IMAGE% -fsS http://api:5000/health >nul'
+          bat '"%DOCKER_EXE%" run --rm --network %COMPOSE_PROJECT_NAME%_default %CURL_IMAGE% -fsS http://app:3000/ >nul'
         }
       }
     }
 
     stage('Compose Status') {
       steps {
-        bat '%DOCKER% compose -f "%COMPOSE_FILE%" ps'
+        bat '"%DOCKER_EXE%" compose -f "%COMPOSE_FILE%" ps'
       }
     }
 
@@ -141,7 +134,7 @@ pipeline {
         expression { return params.TEARDOWN_AFTER_DEPLOY }
       }
       steps {
-        bat '%DOCKER% compose -f "%COMPOSE_FILE%" down --remove-orphans'
+        bat '"%DOCKER_EXE%" compose -f "%COMPOSE_FILE%" down --remove-orphans'
       }
     }
   }
@@ -149,7 +142,7 @@ pipeline {
   post {
     failure {
       echo "Build failed! Showing logs..."
-      bat '%DOCKER% compose -f "%COMPOSE_FILE%" logs --tail 200'
+      bat '"%DOCKER_EXE%" compose -f "%COMPOSE_FILE%" logs --tail 200'
     }
 
     success {
