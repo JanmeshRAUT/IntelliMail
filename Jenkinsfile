@@ -4,6 +4,7 @@ pipeline {
   options {
     timestamps()
     disableConcurrentBuilds()
+    buildDiscarder(logRotator(numToKeepStr: '10'))
   }
 
   parameters {
@@ -23,20 +24,18 @@ pipeline {
 
     stage('Checkout') {
       steps {
-        checkout scm
+        retry(2) {
+          checkout scm
+        }
       }
     }
 
-    // 🔥 FIXED ENV LOADING
     stage('Load .env from Jenkins') {
       steps {
         withCredentials([file(credentialsId: 'env-files', variable: 'ENV_FILE')]) {
           bat '''
             echo Copying .env from Jenkins credentials...
             copy "%ENV_FILE%" .env
-
-            echo ===== ENV LOADED =====
-            type .env
           '''
         }
       }
@@ -44,28 +43,54 @@ pipeline {
 
     stage('Validate Docker') {
       steps {
-        bat '%DOCKER% --version'
-        bat '%DOCKER% compose version'
+        retry(2) {
+          bat '%DOCKER% --version'
+          bat '%DOCKER% compose version'
+        }
       }
     }
 
     stage('Deploy Stack') {
       steps {
         script {
-          if (params.REBUILD_IMAGES) {
+          retry(2) {
             bat '%DOCKER% compose -f "%COMPOSE_FILE%" down --remove-orphans || exit /b 0'
-            bat '%DOCKER% compose -f "%COMPOSE_FILE%" up -d --build --remove-orphans'
-          } else {
-            bat '%DOCKER% compose -f "%COMPOSE_FILE%" down --remove-orphans || exit /b 0'
-            bat '%DOCKER% compose -f "%COMPOSE_FILE%" up -d --remove-orphans'
+
+            if (params.REBUILD_IMAGES) {
+              bat '%DOCKER% compose -f "%COMPOSE_FILE%" up -d --build --remove-orphans'
+            } else {
+              bat '%DOCKER% compose -f "%COMPOSE_FILE%" up -d --remove-orphans'
+            }
           }
         }
       }
     }
 
-    stage('Wait') {
+    // 🔥 SMART WAIT (NO HARDCODED SLEEP)
+    stage('Wait for Services (Health Check)') {
       steps {
-        bat 'timeout /t 15 >nul'
+        script {
+          retry(10) {
+            def status = bat(
+              script: '''
+              powershell -Command ^
+              "try {
+                $r1 = Invoke-WebRequest http://127.0.0.1:3000 -UseBasicParsing -TimeoutSec 5
+                $r2 = Invoke-WebRequest http://127.0.0.1:5000 -UseBasicParsing -TimeoutSec 5
+                if ($r1.StatusCode -eq 200 -and $r2.StatusCode -eq 200) { exit 0 }
+                else { exit 1 }
+              } catch { exit 1 }"
+              ''',
+              returnStatus: true
+            )
+
+            if (status != 0) {
+              echo "Services not ready yet... retrying"
+              sleep(time: 5, unit: 'SECONDS')
+              error("Retrying...")
+            }
+          }
+        }
       }
     }
 
@@ -74,11 +99,13 @@ pipeline {
         expression { return params.RUN_SMOKE_TESTS }
       }
       steps {
-        bat '''
-          powershell -Command ^
-          "Invoke-WebRequest http://127.0.0.1:3000 -UseBasicParsing; ^
-           Invoke-WebRequest http://127.0.0.1:5000 -UseBasicParsing"
-        '''
+        retry(2) {
+          bat '''
+            powershell -Command ^
+            "Invoke-WebRequest http://127.0.0.1:3000 -UseBasicParsing; ^
+             Invoke-WebRequest http://127.0.0.1:5000 -UseBasicParsing"
+          '''
+        }
       }
     }
 
@@ -100,8 +127,14 @@ pipeline {
 
   post {
     failure {
+      echo "Build failed! Showing logs..."
       bat '%DOCKER% compose -f "%COMPOSE_FILE%" logs --tail 200'
     }
+
+    success {
+      echo "Deployment successful 🚀"
+    }
+
     always {
       cleanWs notFailBuild: true
     }
