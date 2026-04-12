@@ -5,6 +5,9 @@ FROM python:3.11-slim AS builder
 
 WORKDIR /app
 
+ENV VIRTUAL_ENV=/opt/venv
+ENV PATH="$VIRTUAL_ENV/bin:$PATH"
+
 # Install system deps (if needed for ML libs)
 RUN apt-get update && apt-get install -y \
     build-essential \
@@ -14,8 +17,10 @@ RUN apt-get update && apt-get install -y \
 # Copy only requirements first (for caching)
 COPY ml-model/requirements-prod.txt ./requirements.txt
 
-RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir --user -r requirements.txt
+RUN python -m venv "$VIRTUAL_ENV" && \
+    pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt && \
+    python -c "import flask, sklearn, numpy"
 
 
 # -------------------------------
@@ -29,6 +34,8 @@ WORKDIR /app
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONPATH=/app
+ENV VIRTUAL_ENV=/opt/venv
+ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 
 # Install minimal runtime tools
 RUN apt-get update && apt-get install -y curl && \
@@ -38,8 +45,7 @@ RUN apt-get update && apt-get install -y curl && \
 RUN useradd -m appuser
 
 # Copy dependencies
-COPY --from=builder /root/.local /root/.local
-ENV PATH=/root/.local/bin:$PATH
+COPY --from=builder /opt/venv /opt/venv
 
 # Copy app files
 COPY ml-model/api.py ./api.py

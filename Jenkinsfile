@@ -18,6 +18,7 @@ pipeline {
     COMPOSE_FILE = 'docker-compose.yml'
     COMPOSE_PROJECT_NAME = 'intellimail'
     DOCKER = '"C:\\Program Files\\Docker\\Docker\\resources\\bin\\docker.exe"'
+    CURL_IMAGE = 'curlimages/curl:8.8.0'
   }
 
   stages {
@@ -46,6 +47,8 @@ pipeline {
         retry(2) {
           bat '%DOCKER% --version'
           bat '%DOCKER% compose version'
+          bat '%DOCKER% info >nul'
+          bat '%DOCKER% compose -f "%COMPOSE_FILE%" config >nul'
         }
       }
     }
@@ -66,26 +69,47 @@ pipeline {
       }
     }
 
-    // 🔥 SMART WAIT (NO HARDCODED SLEEP)
     stage('Wait for Services (Health Check)') {
       steps {
         script {
-          retry(10) {
+          retry(12) {
             def status = bat(
               script: '''
-              powershell -Command ^
-              "try {
-                $r1 = Invoke-WebRequest http://127.0.0.1:3000 -UseBasicParsing -TimeoutSec 5
-                $r2 = Invoke-WebRequest http://127.0.0.1:5000 -UseBasicParsing -TimeoutSec 5
-                if ($r1.StatusCode -eq 200 -and $r2.StatusCode -eq 200) { exit 0 }
-                else { exit 1 }
-              } catch { exit 1 }"
+              @echo off
+              setlocal enabledelayedexpansion
+
+              for /f %%i in ('%DOCKER% compose -f "%COMPOSE_FILE%" ps -q api') do set API_ID=%%i
+              if "!API_ID!"=="" (
+                echo api container not created yet
+                exit /b 1
+              )
+
+              for /f %%h in ('%DOCKER% inspect --format="{{if .State.Health}}{{.State.Health.Status}}{{else}}unhealthy{{end}}" !API_ID!') do set API_HEALTH=%%h
+              if /I not "!API_HEALTH!"=="healthy" (
+                echo api health status: !API_HEALTH!
+                exit /b 1
+              )
+
+              %DOCKER% run --rm --network %COMPOSE_PROJECT_NAME%_default %CURL_IMAGE% -fsS http://app:3000/ >nul
+              if errorlevel 1 (
+                echo app endpoint not ready yet
+                exit /b 1
+              )
+
+              %DOCKER% run --rm --network %COMPOSE_PROJECT_NAME%_default %CURL_IMAGE% -fsS http://api:5000/health >nul
+              if errorlevel 1 (
+                echo api health endpoint not ready yet
+                exit /b 1
+              )
+
+              exit /b 0
               ''',
               returnStatus: true
             )
 
             if (status != 0) {
               echo "Services not ready yet... retrying"
+              bat '%DOCKER% compose -f "%COMPOSE_FILE%" ps'
               sleep(time: 5, unit: 'SECONDS')
               error("Retrying...")
             }
@@ -100,11 +124,8 @@ pipeline {
       }
       steps {
         retry(2) {
-          bat '''
-            powershell -Command ^
-            "Invoke-WebRequest http://127.0.0.1:3000 -UseBasicParsing; ^
-             Invoke-WebRequest http://127.0.0.1:5000 -UseBasicParsing"
-          '''
+          bat '%DOCKER% run --rm --network %COMPOSE_PROJECT_NAME%_default %CURL_IMAGE% -fsS http://app:3000/ >nul'
+          bat '%DOCKER% run --rm --network %COMPOSE_PROJECT_NAME%_default %CURL_IMAGE% -fsS http://api:5000/health >nul'
         }
       }
     }
