@@ -8,7 +8,7 @@ services:
     environment:
       - NODE_ENV=production
       - ML_SERVICE_URL=http://api:5000
-      - LSTM_SERVICE_URL=http://api:5000
+      - LSTM_SERVICE_URL=http://api:5001
       - APP_URL=${APP_URL}
     depends_on:
       api:
