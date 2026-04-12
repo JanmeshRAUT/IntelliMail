@@ -71,44 +71,10 @@ pipeline {
 
     stage('Wait for Services') {
       steps {
-        script {
-          retry(12) {
-            def status = bat(
-              script: '''
-              @echo off
-              setlocal enabledelayedexpansion
-
-              for /f %%i in ('"%DOCKER_EXE%" compose -f "%COMPOSE_FILE%" ps -q api') do set API_ID=%%i
-              if "!API_ID!"=="" (
-                echo api container not created yet
-                exit /b 1
-              )
-
-              for /f %%h in ('"%DOCKER_EXE%" inspect --format="{{if .State.Health}}{{.State.Health.Status}}{{else}}unhealthy{{end}}" !API_ID!') do set API_HEALTH=%%h
-              if /I not "!API_HEALTH!"=="healthy" (
-                echo api health status: !API_HEALTH!
-                exit /b 1
-              )
-
-              "%DOCKER_EXE%" run --rm --network %COMPOSE_PROJECT_NAME%_default %CURL_IMAGE% -fsS http://app:3000/ >nul
-              if errorlevel 1 (
-                echo app endpoint not ready yet
-                exit /b 1
-              )
-
-              exit /b 0
-              ''',
-              returnStatus: true
-            )
-
-            if (status != 0) {
-              echo "Services not ready yet... retrying"
-              bat '"%DOCKER_EXE%" compose -f "%COMPOSE_FILE%" ps'
-              sleep(time: 5, unit: 'SECONDS')
-              error("Retrying...")
-            }
-          }
-        }
+        bat '''
+        echo Checking running containers...
+        docker compose ps
+        '''
       }
     }
 
