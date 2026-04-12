@@ -83,8 +83,19 @@ pipeline {
         expression { return params.RUN_SMOKE_TESTS }
       }
       steps {
-        retry(2) {
-          bat '"%DOCKER_EXE%" run --rm --network %COMPOSE_PROJECT_NAME%_default %CURL_IMAGE% -fsS http://app:3000/ >nul'
+        script {
+          retry(12) {
+            def status = bat(
+              script: '"%DOCKER_EXE%" run --rm --network %COMPOSE_PROJECT_NAME%_default %CURL_IMAGE% -fsS http://app:3000/ >nul',
+              returnStatus: true
+            )
+
+            if (status != 0) {
+              echo "App not ready yet. Retrying in 5 seconds..."
+              sleep(time: 5, unit: 'SECONDS')
+              error("Retrying app smoke test")
+            }
+          }
         }
       }
     }
