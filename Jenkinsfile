@@ -73,7 +73,7 @@ pipeline {
       steps {
         bat '''
         echo Checking running containers...
-        docker compose ps
+        "%DOCKER_EXE%" compose ps
         '''
       }
     }
