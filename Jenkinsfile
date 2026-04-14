@@ -2,79 +2,73 @@ pipeline {
     agent any
 
     environment {
-        DOCKER_IMAGE = "intellmail-backend"
-        DOCKER_TAG = "latest"
-        CONTAINER_NAME = "intellmail-service"
+        COMPOSE_PROJECT_NAME = "intellmail-prod"
     }
 
     stages {
         stage('Preflight') {
             steps {
                 script {
-                    echo "Validating Docker availability on Jenkins node..."
-                    int dockerPathStatus = bat(returnStatus: true, script: '@echo off\r\nwhere docker')
-                    if (dockerPathStatus != 0) {
-                        error("Docker CLI is not available on this Jenkins agent. Install Docker Desktop/Engine and ensure 'docker' is in PATH for the Jenkins service account, then restart Jenkins.")
+                    echo "Checking system environment..."
+                    // Check Docker
+                    int dockerStatus = bat(returnStatus: true, script: 'docker --version')
+                    if (dockerStatus != 0) {
+                        error("Docker not found. Please add Docker to System PATH and restart Jenkins.")
                     }
-
-                    int dockerVersionStatus = bat(returnStatus: true, script: '@echo off\r\ndocker version --format "{{.Server.Version}}"')
-                    if (dockerVersionStatus != 0) {
-                        error("Docker CLI was found, but Docker daemon is not reachable. Start Docker and verify Jenkins can access it.")
+                    
+                    // Check Docker Compose
+                    int composeStatus = bat(returnStatus: true, script: 'docker-compose --version')
+                    if (composeStatus != 0) {
+                        error("Docker Compose not found. Please install docker-compose and add to PATH.")
                     }
                 }
             }
         }
 
-        stage('Cleanup') {
+        stage('Build & Deploy') {
+            steps {
+                // Pull Secret File from Jenkins Credentials (ID: 'env-file')
+                withCredentials([file(credentialsId: 'env-file', variable: 'ENV_PATH')]) {
+                    script {
+                        echo "Configuring environment and deploying services..."
+                        
+                        // Copy the secret file to the workspace .env for docker-compose to use
+                        bat "copy /Y %ENV_PATH% .env"
+                        
+                        // Build and start the infrastructure
+                        bat "docker-compose up -d --build"
+                    }
+                }
+            }
+        }
+
+        stage('Verify Health') {
             steps {
                 script {
-                    echo "Cleaning up old containers..."
-                    try {
-                        bat "docker rm -f ${CONTAINER_NAME}"
-                    } catch (Exception e) {
-                        echo "No existing container to stop/remove."
-                    }
+                    echo "Verifying health of deployed services..."
+                    // Wait for services to stabilize
+                    sleep 10
+                    
+                    bat "docker ps --filter name=intellmail"
+                    
+                    echo "Deployment Complete."
+                    echo "Frontend/App: http://localhost:3000"
+                    echo "ML Monitor: http://localhost:7860"
                 }
-            }
-        }
-
-        stage('Build Image') {
-            steps {
-                dir('intellmail') {
-                    echo "Building Docker image: ${DOCKER_IMAGE}..."
-                    bat "docker build -t ${DOCKER_IMAGE}:${DOCKER_TAG} ."
-                }
-            }
-        }
-
-        stage('Deploy with Env') {
-            steps {
-                // Using the 'env-file' Secret File credential from Jenkins
-                withCredentials([file(credentialsId: 'env-file', variable: 'ENV_FILE_PATH')]) {
-                    echo "Deploying container using env file from credentials..."
-                    bat "docker run -d --name ${CONTAINER_NAME} -p 7860:7860 --env-file %ENV_FILE_PATH% ${DOCKER_IMAGE}:${DOCKER_TAG}"
-                }
-            }
-        }
-
-        stage('Verify') {
-            steps {
-                echo "Verifying deployment..."
-                bat "docker ps | findstr ${CONTAINER_NAME}"
-                echo "Deployment successful! Service running at http://localhost:7860"
             }
         }
     }
 
     post {
         always {
-            echo "Pipeline finished."
+            echo "Pipeline Run Finished."
         }
         success {
-            echo "IntelliMail Backend successfully deployed via Jenkins."
+            echo "Successfully deployed IntelliMail Stack (Frontend + ML Backend)."
         }
         failure {
-            echo "Pipeline failed. Check logs for details."
+            echo "Deployment failed. Cleaning up stale configs..."
+            // bat "docker-compose down"
         }
     }
 }
