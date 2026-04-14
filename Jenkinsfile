@@ -8,13 +8,29 @@ pipeline {
     }
 
     stages {
+        stage('Preflight') {
+            steps {
+                script {
+                    echo "Validating Docker availability on Jenkins node..."
+                    int dockerPathStatus = bat(returnStatus: true, script: '@echo off\r\nwhere docker')
+                    if (dockerPathStatus != 0) {
+                        error("Docker CLI is not available on this Jenkins agent. Install Docker Desktop/Engine and ensure 'docker' is in PATH for the Jenkins service account, then restart Jenkins.")
+                    }
+
+                    int dockerVersionStatus = bat(returnStatus: true, script: '@echo off\r\ndocker version --format "{{.Server.Version}}"')
+                    if (dockerVersionStatus != 0) {
+                        error("Docker CLI was found, but Docker daemon is not reachable. Start Docker and verify Jenkins can access it.")
+                    }
+                }
+            }
+        }
+
         stage('Cleanup') {
             steps {
                 script {
                     echo "Cleaning up old containers..."
                     try {
-                        bat "docker stop ${CONTAINER_NAME}"
-                        bat "docker rm ${CONTAINER_NAME}"
+                        bat "docker rm -f ${CONTAINER_NAME}"
                     } catch (Exception e) {
                         echo "No existing container to stop/remove."
                     }

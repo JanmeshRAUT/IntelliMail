@@ -59,19 +59,19 @@ export default function ThreadDetail() {
   );
 
   return (
-    <div className="p-10 max-w-7xl mx-auto space-y-12 text-[var(--foreground)] transition-colors duration-500">
+    <div className="p-4 md:p-6 max-w-7xl mx-auto space-y-6 text-[var(--foreground)] transition-colors duration-500">
       <Link 
         to="/" 
-        className="inline-flex items-center gap-3 text-[var(--foreground)] hover:text-primary-600 transition-all font-black text-xs uppercase tracking-widest bg-[var(--card)] border border-[var(--border)] px-6 py-3.5 rounded-2xl shadow-xl shadow-black/[0.02] hover:shadow-2xl hover:shadow-black/[0.05] hover:-translate-x-2 group"
+        className="inline-flex items-center gap-2 text-[var(--foreground)] hover:text-primary-600 transition-all font-bold text-[10px] uppercase tracking-wider bg-[var(--card)] border border-[var(--border)] px-4 py-2 rounded-xl"
       >
-        <ArrowLeft className="w-5 h-5 transition-transform group-hover:-translate-x-1" />
-        Return to Matrix
+        <ArrowLeft className="w-4 h-4" />
+        Return
       </Link>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
-        <div className="lg:col-span-8 space-y-10">
-          <header className="space-y-8">
-            <h1 className="text-5xl font-extrabold leading-[1.1] tracking-tightest bg-clip-text text-transparent bg-gradient-to-br from-[var(--foreground)] to-[var(--foreground)]/60">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <div className="lg:col-span-8 space-y-6">
+          <header className="space-y-4">
+            <h1 className="text-3xl font-extrabold leading-tight tracking-tight bg-clip-text text-transparent bg-gradient-to-br from-[var(--foreground)] to-[var(--foreground)]/60">
               {thread.subject}
             </h1>
             <div className="flex flex-wrap gap-3 items-center">
@@ -89,41 +89,40 @@ export default function ThreadDetail() {
             </div>
           </header>
 
-          <div className="space-y-8">
+          <div className="space-y-6">
             {emails.map((email, idx) => (
               <motion.div 
                 key={email.id}
-                initial={{ opacity: 0, scale: 0.98, y: 30 }}
+                initial={{ opacity: 0, scale: 0.98, y: 10 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
-                transition={{ delay: idx * 0.1, type: 'spring', stiffness: 200, damping: 25 }}
-                className="bg-[var(--card)] border border-[var(--border)] rounded-[3rem] overflow-hidden shadow-2xl shadow-black/[0.02] hover:shadow-black/[0.04] hover:border-primary-500/20 transition-all group"
+                transition={{ delay: idx * 0.05 }}
+                className="bg-[var(--card)] border border-[var(--border)] rounded-2xl overflow-hidden shadow-sm hover:border-primary-500/20 transition-all group"
               >
-                <div className="p-8 border-b border-[var(--border)] bg-[var(--secondary)]/20 flex items-center justify-between gap-6">
-                  <div className="flex items-center gap-5">
+                <div className="p-4 border-b border-[var(--border)] bg-[var(--secondary)]/10 flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-3">
                     <div className="relative">
-                      <div className="w-14 h-14 rounded-2xl gradient-primary flex items-center justify-center text-white font-extrabold text-xl shadow-lg shadow-primary-500/20">
+                      <div className="w-10 h-10 rounded-xl gradient-primary flex items-center justify-center text-white font-bold text-lg">
                         {email.from.charAt(0).toUpperCase()}
                       </div>
-                      <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-emerald-500 border-4 border-[var(--card)] rounded-full" />
                     </div>
                     <div className="min-w-0">
-                      <p className="text-lg font-extrabold text-[var(--foreground)] truncate tracking-tight">{email.from}</p>
-                      <p className="text-[11px] text-[var(--muted-foreground)] font-black uppercase tracking-widest opacity-60">
+                      <p className="text-sm font-bold text-[var(--foreground)] truncate tracking-tight">{email.from}</p>
+                      <p className="text-[10px] text-[var(--muted-foreground)] font-semibold opacity-60">
                         {new Date(email.timestamp).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
                       </p>
                     </div>
                   </div>
                 </div>
-                <div className="p-10 lg:p-14">
-                  <div className="mx-auto max-w-4xl space-y-6">
+                <div className="p-5 md:p-6 lg:p-8">
+                  <div className="mx-auto max-w-4xl space-y-4">
                     {/<\/?.+>/.test(email.body) ? (
                       <div
-                        className="prose prose-slate dark:prose-invert max-w-none text-[var(--foreground)] text-[15px] font-semibold leading-relaxed prose-headings:font-extrabold prose-a:text-primary-500"
+                        className="prose prose-slate dark:prose-invert max-w-none text-[var(--foreground)] text-[13px] font-semibold leading-relaxed"
                         style={{ wordBreak: 'break-word', fontFamily: 'inherit' }}
                         dangerouslySetInnerHTML={{ __html: email.body }}
                       />
                     ) : (
-                      <div className="whitespace-pre-wrap text-[var(--foreground)] text-[15px] font-semibold leading-relaxed tracking-tight">
+                      <div className="whitespace-pre-wrap text-[var(--foreground)] text-[13px] font-semibold leading-relaxed tracking-tight">
                         {email.body}
                       </div>
                     )}
@@ -134,64 +133,51 @@ export default function ThreadDetail() {
           </div>
         </div>
 
-        <aside className="lg:col-span-4 space-y-10">
-          <div className="bg-[var(--card)]/50 backdrop-blur-xl border border-[var(--border)] p-12 rounded-[3.5rem] space-y-12 sticky top-10 shadow-2xl shadow-black/[0.03] transition-all duration-500">
-            <header className="space-y-3">
-              <div className="flex items-center gap-4 text-primary-600 dark:text-primary-400">
-                <div className="p-3 bg-primary-600/10 rounded-2xl shadow-inner">
-                  <Zap className="w-6 h-6 fill-primary-600 animate-pulse" />
-                </div>
-                <h2 className="font-black uppercase tracking-[0.25em] text-xs">Intelligence Node</h2>
+        <aside className="lg:col-span-4 space-y-4">
+          <div className="bg-[var(--card)]/50 backdrop-blur-md border border-[var(--border)] p-6 rounded-2xl space-y-6 sticky top-6 shadow-sm">
+            <header className="space-y-2">
+              <div className="flex items-center gap-2 text-primary-600 dark:text-primary-400">
+                <Zap className="w-4 h-4 fill-primary-600" />
+                <h2 className="font-bold uppercase tracking-wider text-[10px]">Intelligence</h2>
               </div>
             </header>
 
-            <div className="space-y-12">
-              <div className="space-y-5">
-                <div className="flex items-center justify-between border-b border-[var(--border)] pb-4">
-                  <h3 className="text-[11px] font-black text-[var(--muted-foreground)] uppercase tracking-[0.2em] opacity-50">Narrative Synthesis</h3>
-                </div>
-                <p className="text-[15px] leading-relaxed text-[var(--foreground)] font-bold opacity-90">
-                  {thread.analysis?.summary || "Neural buffers are currently synchronizing the conversation context..."}
+            <div className="space-y-6">
+              <div className="space-y-2">
+                <h3 className="text-[9px] font-black text-[var(--muted-foreground)] uppercase tracking-widest opacity-50">Summary</h3>
+                <p className="text-xs leading-relaxed text-[var(--foreground)] font-bold">
+                  {thread.analysis?.summary || "Neural buffers synchronizing..."}
                 </p>
               </div>
 
-              <div className="space-y-5">
-                <div className="flex items-center justify-between border-b border-[var(--border)] pb-4">
-                  <h3 className="text-[11px] font-black text-[var(--muted-foreground)] uppercase tracking-[0.2em] opacity-50">Sentiment Resonance</h3>
-                </div>
-                <div className="bg-[var(--secondary)]/40 p-6 rounded-[2rem] border border-[var(--border)] flex items-center gap-5 transition-all hover:border-primary-500/30 group">
+              <div className="space-y-2">
+                <h3 className="text-[9px] font-black text-[var(--muted-foreground)] uppercase tracking-widest opacity-50">Sentiment</h3>
+                <div className="bg-[var(--secondary)]/40 p-4 rounded-xl border border-[var(--border)] flex items-center gap-3">
                   <div className={cn(
-                    "w-4 h-4 rounded-full ring-8 ring-offset-4 ring-offset-[var(--card)] transition-all group-hover:scale-125",
-                    thread.analysis?.sentiment === 'Positive' ? "bg-emerald-500 ring-emerald-500/10 shadow-[0_0_20px_rgba(16,185,129,0.5)]" :
-                    thread.analysis?.sentiment === 'Negative' ? "bg-rose-500 ring-rose-500/10 shadow-[0_0_20px_rgba(244,63,94,0.5)]" : 
-                    "bg-blue-500 ring-blue-500/10 shadow-[0_0_20px_rgba(59,130,246,0.5)]"
+                    "w-3 h-3 rounded-full ring-4 ring-offset-2 ring-offset-[var(--card)]",
+                    thread.analysis?.sentiment === 'Positive' ? "bg-emerald-500 ring-emerald-500/10" :
+                    thread.analysis?.sentiment === 'Negative' ? "bg-rose-500 ring-rose-500/10" : 
+                    "bg-blue-500 ring-blue-500/10"
                   )} />
-                  <span className="text-md font-black text-[var(--foreground)] tracking-tight">{thread.analysis?.sentiment || 'Linear Stability'}</span>
+                  <span className="text-sm font-bold text-[var(--foreground)] tracking-tight">{thread.analysis?.sentiment || 'Neutral'}</span>
                 </div>
               </div>
 
               {thread.analysis?.threats && thread.analysis.threats.length > 0 && (
-                <motion.div 
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  className="p-10 bg-rose-500/[0.03] border-4 border-rose-500/10 rounded-[3rem] space-y-6 relative overflow-hidden"
-                >
-                  <div className="absolute -top-4 -right-4 p-4 opacity-5">
-                    <ShieldAlert className="w-24 h-24" />
+                <div className="p-6 bg-rose-500/[0.03] border-2 border-rose-500/10 rounded-2xl space-y-3 relative overflow-hidden">
+                  <div className="flex items-center gap-3 text-rose-600">
+                    <ShieldAlert className="w-4 h-4" />
+                    <h3 className="text-[10px] font-black uppercase tracking-wider">Threats</h3>
                   </div>
-                  <div className="flex items-center gap-4 text-rose-600">
-                    <ShieldAlert className="w-6 h-6" />
-                    <h3 className="text-xs font-black uppercase tracking-[0.2em]">Security Advisory</h3>
-                  </div>
-                  <ul className="space-y-5 relative z-10">
+                  <ul className="space-y-3 relative z-10 text-[11px] text-[var(--foreground)] font-bold leading-relaxed">
                     {thread.analysis.threats.map((t, i) => (
-                      <li key={i} className="flex items-start gap-4 text-sm text-[var(--foreground)] font-bold leading-relaxed">
-                        <div className="mt-2 w-2 h-2 bg-rose-500 rounded-full shrink-0 shadow-[0_0_10px_rgba(244,63,94,0.8)]" />
+                      <li key={i} className="flex items-start gap-2">
+                        <div className="mt-1.5 w-1.5 h-1.5 bg-rose-500 rounded-full shrink-0" />
                         {t}
                       </li>
                     ))}
                   </ul>
-                </motion.div>
+                </div>
               )}
             </div>
           </div>

@@ -74,33 +74,30 @@ export default function Analytics() {
     .slice(0, 5);
 
   return (
-    <div className="min-h-full bg-[var(--background)] p-8 text-[var(--foreground)] transition-colors duration-300">
-      <div className="mx-auto max-w-7xl space-y-8">
-        <header className="relative overflow-hidden rounded-[2rem] border border-[var(--border)] bg-[var(--card)] shadow-sm">
+    <div className="min-h-full bg-[var(--background)] p-4 md:p-6 text-[var(--foreground)] transition-colors duration-300">
+      <div className="mx-auto max-w-7xl space-y-4">
+        <header className="relative overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--card)] shadow-sm">
           <div className="absolute inset-0 bg-gradient-to-br from-primary-500/8 via-transparent to-emerald-500/8" />
-          <div className="relative p-8 md:p-10 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-            <div className="space-y-3 max-w-3xl">
-              <div className="inline-flex items-center gap-2 rounded-full border border-primary-200 bg-primary-50 px-3 py-1 text-xs font-bold uppercase tracking-[0.2em] text-primary-700 dark:border-primary-500/30 dark:bg-primary-500/10 dark:text-primary-300">
-                <Sparkles className="w-3.5 h-3.5" />
+          <div className="relative p-5 md:p-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div className="space-y-2 max-w-2xl">
+              <div className="inline-flex items-center gap-1.5 rounded-full border border-primary-200 bg-primary-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-primary-700 dark:border-primary-500/30 dark:bg-primary-500/10 dark:text-primary-300">
+                <Sparkles className="w-3 h-3" />
                 Intelligence Report
               </div>
-              <div className="flex items-center gap-4">
-                <div className="rounded-2xl bg-primary-100 p-3 dark:bg-primary-900/30">
-                  <BarChart3 className="w-8 h-8 text-primary-600 dark:text-primary-400" />
+              <div className="flex items-center gap-3">
+                <div className="rounded-xl bg-primary-100 p-2 dark:bg-primary-900/30">
+                  <BarChart3 className="w-6 h-6 text-primary-600 dark:text-primary-400" />
                 </div>
                 <div>
-                  <h1 className="text-3xl md:text-4xl font-black tracking-tight">Analytics Overview</h1>
-                  <p className="text-[var(--muted-foreground)] max-w-2xl leading-relaxed">
-                    Professional summary of inbox security posture, message classifications, and sentiment patterns.
-                  </p>
+                  <h1 className="text-xl md:text-2xl font-black tracking-tight">Analytics Overview</h1>
                 </div>
               </div>
             </div>
 
-            <div className="rounded-2xl border border-[var(--border)] bg-[var(--background)] px-4 py-3 shadow-sm">
-              <div className="flex items-center gap-3 text-sm font-semibold text-[var(--muted-foreground)]">
-                <Activity className="w-4 h-4 text-primary-600" />
-                {threads.length > 0 ? 'Live inbox trends updated from sync data' : 'No inbox data yet'}
+            <div className="rounded-xl border border-[var(--border)] bg-[var(--background)] px-3 py-2 shadow-sm">
+              <div className="flex items-center gap-2 text-xs font-semibold text-[var(--muted-foreground)]">
+                <Activity className="w-3.5 h-3.5 text-primary-600" />
+                {threads.length > 0 ? 'Live inbox trends' : 'No inbox data'}
               </div>
             </div>
           </div>
@@ -111,16 +108,16 @@ export default function Analytics() {
             const Icon = card.icon;
 
             return (
-              <div key={card.label} className="relative overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--card)] p-5 shadow-sm">
+              <div key={card.label} className="relative overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--card)] p-4 shadow-sm">
                 <div className={`absolute inset-x-0 top-0 h-1 bg-gradient-to-r ${card.accent}`} />
-                <div className="flex items-start justify-between gap-3">
+                <div className="flex items-start justify-between gap-2">
                   <div>
-                    <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--muted-foreground)]">{card.label}</p>
-                    <p className="mt-3 text-3xl font-black text-[var(--foreground)]">{card.value}</p>
-                    <p className="mt-2 text-sm text-[var(--muted-foreground)]">{card.note}</p>
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--muted-foreground)]">{card.label}</p>
+                    <p className="mt-1 text-2xl font-black text-[var(--foreground)]">{card.value}</p>
+                    <p className="mt-1 text-xs text-[var(--muted-foreground)]">{card.note}</p>
                   </div>
-                  <div className={`rounded-2xl bg-gradient-to-br ${card.accent} p-3 text-white shadow-lg`}>
-                    <Icon className="w-5 h-5" />
+                  <div className={`rounded-xl bg-gradient-to-br ${card.accent} p-2 text-white shadow-md`}>
+                    <Icon className="w-4 h-4" />
                   </div>
                 </div>
               </div>
@@ -128,26 +125,25 @@ export default function Analytics() {
           })}
         </section>
 
-        <section className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="rounded-[2rem] border border-[var(--border)] bg-[var(--card)] p-8 shadow-sm space-y-6">
+        <section className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-6 shadow-sm space-y-4">
             <div>
-              <h2 className="text-2xl font-black tracking-tight">Classification Distribution</h2>
-              <p className="text-sm text-[var(--muted-foreground)] mt-1">Thread mix across core conversation categories</p>
+              <h2 className="text-lg font-black tracking-tight">Classification</h2>
             </div>
 
-            <div className="space-y-5">
+            <div className="space-y-4">
               {[
-                { label: 'Work', value: workThreads.length, color: 'bg-primary-500 shadow-primary-500/30', bg: 'bg-primary-500/10' },
-                { label: 'Personal', value: personalThreads.length, color: 'bg-emerald-500 shadow-emerald-500/30', bg: 'bg-emerald-500/10' },
-                { label: 'Promotions', value: promotionalThreads.length, color: 'bg-purple-500 shadow-purple-500/30', bg: 'bg-purple-500/10' },
-                { label: 'Spam', value: spamThreads.length, color: 'bg-red-500 shadow-red-500/30', bg: 'bg-red-500/10' },
+                { label: 'Work', value: workThreads.length, color: 'bg-primary-500', bg: 'bg-primary-500/10' },
+                { label: 'Personal', value: personalThreads.length, color: 'bg-emerald-500', bg: 'bg-emerald-500/10' },
+                { label: 'Promotions', value: promotionalThreads.length, color: 'bg-purple-500', bg: 'bg-purple-500/10' },
+                { label: 'Spam', value: spamThreads.length, color: 'bg-red-500', bg: 'bg-red-500/10' },
               ].map((category) => (
-                <div key={category.label} className="space-y-2">
+                <div key={category.label} className="space-y-1.5">
                   <div className="flex items-center justify-between px-1">
-                    <span className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--muted-foreground)]">{category.label}</span>
-                    <span className="text-sm font-black text-[var(--foreground)]">{category.value}</span>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--muted-foreground)]">{category.label}</span>
+                    <span className="text-xs font-black text-[var(--foreground)]">{category.value}</span>
                   </div>
-                  <div className={`h-3 w-full overflow-hidden rounded-full ${category.bg}`}>
+                  <div className={`h-2 w-full overflow-hidden rounded-full ${category.bg}`}>
                     <motion.div
                       initial={{ width: 0 }}
                       animate={{ width: `${threads.length > 0 ? (category.value / threads.length) * 100 : 0}%` }}
@@ -160,24 +156,23 @@ export default function Analytics() {
             </div>
           </div>
 
-          <div className="rounded-[2rem] border border-[var(--border)] bg-[var(--card)] p-8 shadow-sm space-y-6">
+          <div className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-6 shadow-sm space-y-4">
             <div>
-              <h2 className="text-2xl font-black tracking-tight">Sentiment Landscape</h2>
-              <p className="text-sm text-[var(--muted-foreground)] mt-1">Conversation tone across the current inbox</p>
+              <h2 className="text-lg font-black tracking-tight">Sentiment</h2>
             </div>
 
-            <div className="space-y-5">
+            <div className="space-y-4">
               {[
-                { label: 'Positive Resonance', value: sentimentCounts.positive, color: 'bg-teal-500 shadow-teal-500/30', bg: 'bg-teal-500/10' },
-                { label: 'Neutral Baseline', value: sentimentCounts.neutral, color: 'bg-blue-500 shadow-blue-500/30', bg: 'bg-blue-500/10' },
-                { label: 'Negative Indicators', value: sentimentCounts.negative, color: 'bg-rose-500 shadow-rose-500/30', bg: 'bg-rose-500/10' },
+                { label: 'Positive', value: sentimentCounts.positive, color: 'bg-teal-500', bg: 'bg-teal-500/10' },
+                { label: 'Neutral', value: sentimentCounts.neutral, color: 'bg-blue-500', bg: 'bg-blue-500/10' },
+                { label: 'Negative', value: sentimentCounts.negative, color: 'bg-rose-500', bg: 'bg-rose-500/10' },
               ].map((sentiment) => (
-                <div key={sentiment.label} className="space-y-2">
+                <div key={sentiment.label} className="space-y-1.5">
                   <div className="flex items-center justify-between px-1">
-                    <span className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--muted-foreground)]">{sentiment.label}</span>
-                    <span className="text-sm font-black text-[var(--foreground)]">{sentiment.value}</span>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--muted-foreground)]">{sentiment.label}</span>
+                    <span className="text-xs font-black text-[var(--foreground)]">{sentiment.value}</span>
                   </div>
-                  <div className={`h-3 w-full overflow-hidden rounded-full ${sentiment.bg}`}>
+                  <div className={`h-2 w-full overflow-hidden rounded-full ${sentiment.bg}`}>
                     <motion.div
                       initial={{ width: 0 }}
                       animate={{ width: `${threads.length > 0 ? (sentiment.value / threads.length) * 100 : 0}%` }}
@@ -191,14 +186,13 @@ export default function Analytics() {
           </div>
         </section>
 
-        <section className="grid grid-cols-1 xl:grid-cols-[1.1fr_0.9fr] gap-6">
-          <div className="rounded-[2rem] border border-[var(--border)] bg-[var(--card)] p-8 shadow-sm">
-            <div className="flex items-center justify-between gap-4 mb-6">
+        <section className="grid grid-cols-1 xl:grid-cols-[1.2fr_0.8fr] gap-4">
+          <div className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-6 shadow-sm">
+            <div className="flex items-center justify-between gap-3 mb-4">
               <div>
-                <h2 className="text-2xl font-black tracking-tight">Top Findings</h2>
-                <p className="text-sm text-[var(--muted-foreground)] mt-1">Most important threads by priority and security state</p>
+                <h2 className="text-lg font-black tracking-tight">Top Findings</h2>
               </div>
-              <TrendingUp className="w-5 h-5 text-primary-600" />
+              <TrendingUp className="w-4 h-4 text-primary-600" />
             </div>
 
             {topThreads.length > 0 ? (
@@ -244,13 +238,12 @@ export default function Analytics() {
             )}
           </div>
 
-          <div className="rounded-[2rem] border border-[var(--border)] bg-[var(--card)] p-8 shadow-sm">
-            <div className="flex items-center justify-between gap-4 mb-6">
+          <div className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-6 shadow-sm">
+            <div className="flex items-center justify-between gap-3 mb-4">
               <div>
-                <h2 className="text-2xl font-black tracking-tight">Operational Snapshot</h2>
-                <p className="text-sm text-[var(--muted-foreground)] mt-1">Quick indicators for day-to-day monitoring</p>
+                <h2 className="text-lg font-black tracking-tight">Snapshot</h2>
               </div>
-              <Activity className="w-5 h-5 text-primary-600" />
+              <Activity className="w-4 h-4 text-primary-600" />
             </div>
 
             <div className="space-y-4">

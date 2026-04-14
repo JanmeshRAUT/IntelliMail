@@ -20,6 +20,7 @@ export const SecurityDashboard: React.FC<SecurityDashboardProps> = ({
   onAnalyzeThreads,
 }) => {
   const navigate = useNavigate();
+  const cn = (...args: any[]) => args.filter(Boolean).join(' ');
   const [analyses, setAnalyses] = useState<Map<string, ThreadSecuritySummaryType>>(() => {
     try {
       const raw = sessionStorage.getItem(ANALYSIS_CACHE_KEY);
@@ -36,11 +37,10 @@ export const SecurityDashboard: React.FC<SecurityDashboardProps> = ({
   const [loading, setLoading] = useState(false);
   const [analyzing, setAnalyzing] = useState(new Set<string>());
   const [searchTerm, setSearchTerm] = useState('');
+  const [activeView, setActiveView] = useState<'summary' | 'timeline'>('summary');
 
   const isAnalysisStale = (thread: Thread, analysis?: ThreadSecuritySummaryType) => {
-    if (!analysis) {
-      return true;
-    }
+    if (!analysis) return true;
     return analysis.emails.length !== thread.emails.length;
   };
 
@@ -139,13 +139,9 @@ export const SecurityDashboard: React.FC<SecurityDashboardProps> = ({
     : 0;
   const trustedThreads = analyzedSummaries.filter((item) => item.trustedDomain || item.confidenceLabel === 'High (Legitimate)').length;
   const bulkEmailThreads = analyzedSummaries.filter((item) => item.bulkEmailCandidate || item.attackType === 'Marketing / Bulk Email').length;
-  const suspiciousLinkCount = analyzedSummaries.reduce(
-    (sum, item) => sum + item.emails.reduce((emailSum, email) => emailSum + (email.linkAnalysis?.filter((link) => link.phishingDetected).length || email.threats.length), 0),
-    0
-  );
-  const securityPostureLabel = averageRisk >= 60 ? 'Elevated exposure' : averageRisk >= 30 ? 'Moderate monitoring' : 'Controlled posture';
+  const securityPostureLabel = averageRisk >= 60 ? 'Exposed' : averageRisk >= 30 ? 'Moderate' : 'Secure';
+  const postureColor = averageRisk >= 60 ? 'text-red-600 bg-red-50' : averageRisk >= 30 ? 'text-yellow-600 bg-yellow-50' : 'text-emerald-600 bg-emerald-50';
 
-  // Severity group component
   const SeverityGroup = ({ 
     level, 
     icon: Icon, 
@@ -159,83 +155,56 @@ export const SecurityDashboard: React.FC<SecurityDashboardProps> = ({
     threads: Thread[];
     bgColor: string;
   }) => {
-    const isExpanded = true; // Always expand
-    
     return (
-      <div className="space-y-2">
-        {/* Group Header */}
-        <div className={`flex items-center gap-2 px-4 py-3 rounded-lg ${bgColor} border-l-4 ${color.replace('text', 'border')}`}>
-          <Icon className={`w-5 h-5 ${color}`} />
-          <span className={`font-bold ${color}`}>{level} Risk</span>
-          <span className={`ml-auto text-sm font-semibold ${color}`}>
-            {groupThreads.length}
-          </span>
+      <div className="space-y-1">
+        <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg ${bgColor} border-l-2 ${color.replace('text', 'border')}`}>
+          <Icon className={`w-3.5 h-3.5 ${color}`} />
+          <span className={`text-[10px] font-bold uppercase tracking-wider ${color}`}>{level} Risk</span>
+          <span className={`ml-auto text-[10px] font-bold ${color}`}>{groupThreads.length}</span>
         </div>
 
-        {/* Group Items */}
-        {isExpanded && groupThreads.length > 0 && (
-          <div className="space-y-2 pl-2">
-            {groupThreads.map((thread) => {
-              const analysis = analyses.get(thread.threadId);
-              const isSelected = selectedThreadId === thread.threadId;
-              const isAnalyzing = analyzing.has(thread.threadId);
+        <div className="space-y-1">
+          {groupThreads.map((thread) => {
+            const analysis = analyses.get(thread.threadId);
+            const isSelected = selectedThreadId === thread.threadId;
+            const isAnalyzing = analyzing.has(thread.threadId);
 
-              return (
-                <button
-                  key={thread.threadId}
-                  onClick={() => setSelectedThreadId(thread.threadId)}
-                  className={cn(
-                    'w-full text-left p-3 rounded-lg border-2 transition-all',
-                    isSelected
-                      ? 'border-primary-600 bg-primary-50 dark:bg-primary-500/10'
-                      : 'border-[var(--border)] hover:border-primary-300'
-                  )}
-                >
-                  <div className="flex items-start gap-3">
-                    <div className="flex-1 min-w-0">
-                      {/* Thread ID */}
-                      <p className="truncate font-mono text-xs text-[var(--muted-foreground)]">
-                        {thread.threadId.substring(0, 12)}...
-                      </p>
-                      {/* Participants */}
-                      <p className="truncate text-sm font-medium text-[var(--foreground)] mt-1">
-                        {thread.participants[0]?.split('@')[0] || 'Unknown'}
-                      </p>
-                      {/* Email count */}
-                      <p className="text-xs text-[var(--muted-foreground)]">
-                        {thread.emails.length} {thread.emails.length === 1 ? 'email' : 'emails'}
-                      </p>
-                    </div>
-
-                    {/* Status indicator */}
-                    <div className="shrink-0">
-                      {isAnalyzing ? (
-                        <Loader2 className="w-4 h-4 animate-spin text-primary-600" />
-                      ) : analysis ? (
-                        <span className={cn(
-                          'inline-block w-2 h-2 rounded-full',
-                          analysis.overallRiskLevel === 'High' ? 'bg-red-500' :
-                          analysis.overallRiskLevel === 'Medium' ? 'bg-yellow-500' :
-                          'bg-green-500'
-                        )} />
-                      ) : null}
-                    </div>
+            return (
+              <button
+                key={thread.threadId}
+                onClick={() => setSelectedThreadId(thread.threadId)}
+                className={cn(
+                  'w-full text-left p-2 rounded-lg transition-all border',
+                  isSelected
+                    ? 'border-primary-500 bg-primary-50/50'
+                    : 'border-transparent hover:bg-[var(--secondary)]/50'
+                )}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="flex-1 min-w-0">
+                    <p className="truncate text-xs font-bold text-[var(--foreground)]">
+                      {thread.participants[0]?.split('@')[0] || 'Unknown'}
+                    </p>
+                    <p className="truncate text-[9px] text-[var(--muted-foreground)] uppercase font-bold tracking-tighter">
+                      {thread.threadId.substring(0, 8)} • {thread.emails.length} msg
+                    </p>
                   </div>
-                </button>
-              );
-            })}
-          </div>
-        )}
-
-        {/* Empty state for group */}
-        {isExpanded && groupThreads.length === 0 && (
-          <p className="text-xs text-[var(--muted-foreground)] px-4 py-2 italic">No threads</p>
-        )}
+                  {isAnalyzing ? (
+                    <Loader2 className="w-3 h-3 animate-spin text-primary-500" />
+                  ) : (
+                    <div className={cn(
+                      'w-1.5 h-1.5 rounded-full',
+                      level === 'High' ? 'bg-red-500' : level === 'Medium' ? 'bg-yellow-500' : 'bg-green-500'
+                    )} />
+                  )}
+                </div>
+              </button>
+            );
+          })}
+        </div>
       </div>
     );
   };
-
-  const cn = (...args: any[]) => args.filter(Boolean).join(' ');
 
   const reportCards = [
     { label: 'Threads analyzed', value: totalAnalyzed, icon: Layers3, tone: 'from-slate-500 to-slate-700', note: `${threads.length} total threads` },
@@ -252,205 +221,144 @@ export const SecurityDashboard: React.FC<SecurityDashboardProps> = ({
   };
 
   return (
-    <div className="min-h-full bg-[var(--background)] text-[var(--foreground)] transition-colors">
-      <div className="max-w-7xl mx-auto px-8 py-8 space-y-6">
-        {/* Hero */}
-        <div className="relative overflow-hidden rounded-[2rem] border border-[var(--border)] bg-[var(--card)] shadow-sm">
-          <div className="absolute inset-0 bg-gradient-to-br from-primary-500/8 via-transparent to-emerald-500/8" />
-          <div className="relative p-8 lg:p-10 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-            <div className="space-y-3 max-w-3xl">
-              <div className="inline-flex items-center gap-2 rounded-full border border-primary-200 bg-primary-50 px-3 py-1 text-xs font-bold uppercase tracking-[0.2em] text-primary-700 dark:border-primary-500/30 dark:bg-primary-500/10 dark:text-primary-300">
-                <Sparkles className="w-3.5 h-3.5" />
-                Security Intelligence Report
-              </div>
-              <h1 className="text-3xl md:text-4xl font-black tracking-tight flex items-center gap-3">
-                <Shield className="w-9 h-9 text-primary-600" />
-                Email Security Analyzer
-              </h1>
-              <p className="text-[var(--muted-foreground)] max-w-2xl leading-relaxed">
-                Executive view of thread risk, trusted bulk communications, and phishing indicators.
-                {totalAnalyzed > 0
-                  ? ` ${totalAnalyzed} thread${totalAnalyzed !== 1 ? 's' : ''} analyzed from ${threads.length} total.`
-                  : ` Ready to analyze ${threads.length} thread${threads.length !== 1 ? 's' : ''}.`}
-              </p>
-            </div>
-
-            <div className="flex flex-col items-start lg:items-end gap-3">
-              <div className="flex gap-2 items-center">
-                {loading ? (
-                  <div className="inline-flex items-center gap-2 rounded-full border border-primary-200 bg-primary-50 px-4 py-2 text-sm font-semibold text-primary-700 dark:border-primary-500/30 dark:bg-primary-500/10 dark:text-primary-300">
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    Analyzing threads
-                  </div>
-                ) : (
-                  <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300">
-                    <ShieldCheck className="w-4 h-4" />
-                    {securityPostureLabel}
-                  </div>
-                )}
-                <button
-                  className="ml-2 inline-flex items-center gap-1 rounded-full border border-primary-200 bg-white px-3 py-1.5 text-xs font-semibold text-primary-700 hover:bg-primary-50 dark:border-primary-500/30 dark:bg-primary-500/10 dark:text-primary-300"
-                  onClick={handleRefresh}
-                  disabled={loading}
-                  title="Refresh and re-analyze all threads"
-                >
-                  <Loader2 className={loading ? 'w-3 h-3 animate-spin' : 'w-3 h-3'} />
-                  Refresh
-                </button>
-              </div>
-              <div className="flex items-center gap-3 text-sm text-[var(--muted-foreground)]">
-                <ArrowUpRight className="w-4 h-4" />
-                {suspiciousLinkCount} suspicious link{ suspiciousLinkCount === 1 ? '' : 's' } identified
-              </div>
+    <div className="flex flex-col h-[calc(100vh-140px)] bg-[var(--background)] overflow-hidden">
+      {/* Top Header & Mini Stats */}
+      <div className="flex flex-col md:flex-row items-center justify-between gap-4 p-4 border-b border-[var(--border)] bg-[var(--card)]">
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-primary-600 rounded-lg">
+            <Shield className="w-5 h-5 text-white" />
+          </div>
+          <div>
+            <h1 className="text-lg font-black tracking-tight">Security Laboratory</h1>
+            <div className={`mt-0.5 inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest ${postureColor}`}>
+              <ShieldCheck className="w-3 h-3" />
+              Posture: {securityPostureLabel}
             </div>
           </div>
         </div>
 
-        {/* Report Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-          {reportCards.map((card) => {
-            const Icon = card.icon;
-
-            return (
-              <div key={card.label} className="relative overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--card)] p-5 shadow-sm">
-                <div className={`absolute inset-x-0 top-0 h-1 bg-gradient-to-r ${card.tone}`} />
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--muted-foreground)]">{card.label}</p>
-                    <p className="mt-3 text-3xl font-black text-[var(--foreground)]">{card.value}</p>
-                    <p className="mt-2 text-sm text-[var(--muted-foreground)]">{card.note}</p>
-                  </div>
-                  <div className={`rounded-2xl bg-gradient-to-br ${card.tone} p-3 text-white shadow-lg`}>
-                    <Icon className="w-5 h-5" />
-                  </div>
-                </div>
-              </div>
-            );
-          })}
+        <div className="flex items-center gap-6">
+          {reportCards.slice(0, 3).map((card) => (
+            <div key={card.label} className="hidden lg:flex flex-col items-end">
+              <span className="text-[9px] font-black uppercase tracking-widest text-[var(--muted-foreground)]">{card.label}</span>
+              <span className="text-sm font-black">{card.value}</span>
+            </div>
+          ))}
+          <div className="h-8 w-px bg-[var(--border)] mx-2 hidden lg:block" />
+          <button
+            onClick={handleRefresh}
+            disabled={loading}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[var(--secondary)] text-xs font-bold hover:bg-[var(--border)] transition-all disabled:opacity-50"
+          >
+            <Loader2 className={cn("w-3.5 h-3.5", loading && "animate-spin")} />
+            {loading ? 'Analyzing...' : 'Refresh'}
+          </button>
         </div>
+      </div>
 
-        <div className="grid grid-cols-1 xl:grid-cols-[26rem_minmax(0,1fr)] gap-6 items-start">
-          {/* Left Panel - Grouped Threads */}
-          <div className="flex flex-col gap-4">
-            <div className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-4 shadow-sm">
-              <label className="block text-xs font-bold uppercase tracking-[0.18em] text-[var(--muted-foreground)] mb-2">Search report</label>
+      <div className="flex flex-1 overflow-hidden">
+        {/* Left Pane - Thread List */}
+        <aside className="w-72 flex flex-col border-r border-[var(--border)] bg-[var(--card)]/50">
+          <div className="p-3 border-b border-[var(--border)]">
+            <div className="relative">
               <input
                 type="text"
-                placeholder="Search threads or participants..."
+                placeholder="Filter threads..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full rounded-xl border border-[var(--border)] bg-[var(--background)] px-4 py-3 text-[var(--foreground)] placeholder:text-[var(--muted-foreground)] focus:outline-none focus:ring-2 focus:ring-primary-500/30"
+                className="w-full pl-8 pr-3 py-1.5 rounded-lg border border-[var(--border)] bg-[var(--background)] text-xs font-medium focus:ring-2 focus:ring-primary-500/20 outline-none"
               />
+              <Mail className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[var(--muted-foreground)]" />
             </div>
-
-            <div className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-4 shadow-sm space-y-4">
-              <div className="flex items-center justify-between">
-                <h2 className="text-sm font-black uppercase tracking-[0.2em] text-[var(--muted-foreground)]">Severity Breakdown</h2>
-                <span className="text-xs text-[var(--muted-foreground)]">{threads.length} total</span>
-              </div>
-
-              <div className="space-y-4">
-                <SeverityGroup
-                  level="High"
-                  icon={AlertTriangle}
-                  color="text-red-600 dark:text-red-400"
-                  bgColor="bg-red-50 dark:bg-red-500/10"
-                  threads={highRiskThreads}
-                />
-
-                <SeverityGroup
-                  level="Medium"
-                  icon={AlertCircle}
-                  color="text-yellow-600 dark:text-yellow-400"
-                  bgColor="bg-yellow-50 dark:bg-yellow-500/10"
-                  threads={mediumRiskThreads}
-                />
-
-                <SeverityGroup
-                  level="Low"
-                  icon={CheckCircle}
-                  color="text-green-600 dark:text-green-400"
-                  bgColor="bg-green-50 dark:bg-green-500/10"
-                  threads={lowRiskThreads}
-                />
-              </div>
-            </div>
-
+          </div>
+          
+          <div className="flex-1 overflow-y-auto p-3 space-y-6">
+            <SeverityGroup level="High" icon={AlertTriangle} color="text-red-500" bgColor="bg-red-50" threads={highRiskThreads} />
+            <SeverityGroup level="Medium" icon={AlertCircle} color="text-yellow-500" bgColor="bg-yellow-50" threads={mediumRiskThreads} />
+            <SeverityGroup level="Low" icon={CheckCircle} color="text-green-500" bgColor="bg-green-50" threads={lowRiskThreads} />
             {threads.length === 0 && (
-              <div className="rounded-2xl border border-dashed border-[var(--border)] bg-[var(--card)] p-8 text-center shadow-sm">
-                <Zap className="w-8 h-8 text-[var(--muted-foreground)] mx-auto mb-2 opacity-50" />
-                <p className="text-[var(--muted-foreground)] font-medium">No threads to analyze</p>
+              <div className="py-10 text-center text-[var(--muted-foreground)] opacity-50 space-y-2">
+                <Layers3 className="w-8 h-8 mx-auto" />
+                <p className="text-[10px] uppercase font-black">No Data</p>
               </div>
             )}
           </div>
+        </aside>
 
-          {/* Right Panel - Details */}
-          <div className="space-y-6 min-w-0">
-            <div className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-5 shadow-sm">
-              <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-                <div>
-                  <h2 className="text-lg font-black tracking-tight">Risk Distribution</h2>
-                  <p className="text-sm text-[var(--muted-foreground)]">Threads grouped by severity and ML-backed link analysis</p>
-                </div>
-                <div className="flex items-center gap-4 text-xs font-semibold text-[var(--muted-foreground)]">
-                  <span className="inline-flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full bg-red-500" />High {highRiskThreads.length}</span>
-                  <span className="inline-flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full bg-yellow-500" />Medium {mediumRiskThreads.length}</span>
-                  <span className="inline-flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full bg-green-500" />Low {lowRiskThreads.length}</span>
-                </div>
-              </div>
-
-              <div className="mt-4 h-3 overflow-hidden rounded-full bg-[var(--secondary)]">
-                <div className="flex h-full">
-                  <div className="bg-red-500" style={{ width: `${threads.length > 0 ? (highRiskThreads.length / threads.length) * 100 : 0}%` }} />
-                  <div className="bg-yellow-500" style={{ width: `${threads.length > 0 ? (mediumRiskThreads.length / threads.length) * 100 : 0}%` }} />
-                  <div className="bg-green-500" style={{ width: `${threads.length > 0 ? (lowRiskThreads.length / threads.length) * 100 : 0}%` }} />
-                </div>
-              </div>
-            </div>
-
-            {selectedAnalysis && selectedThread ? (
-              <div className="space-y-6">
-                <div className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-4 shadow-sm flex flex-wrap items-center justify-between gap-3">
-                  <div>
-                    <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--muted-foreground)]">Report Actions</p>
-                    <p className="text-sm text-[var(--muted-foreground)] mt-1">Open a structured report view for stakeholders</p>
-                  </div>
-                  <button
-                    onClick={() => navigate(`/security-report/${selectedThread.threadId}`)}
-                    className="rounded-xl bg-primary-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-primary-700"
+        {/* Right Pane - Detail View */}
+        <main className="flex-1 flex flex-col overflow-hidden bg-[var(--background)]">
+          {selectedAnalysis && selectedThread ? (
+            <>
+              {/* Internal Tab Nav */}
+              <div className="px-6 border-b border-[var(--border)] bg-[var(--card)] flex items-center justify-between">
+                <div className="flex gap-6">
+                  <button 
+                    onClick={() => setActiveView('summary')}
+                    className={cn(
+                      "py-4 text-xs font-bold transition-all relative",
+                      activeView === 'summary' ? "text-primary-600" : "text-[var(--muted-foreground)] hover:text-[var(--foreground)]"
+                    )}
                   >
-                    Open Structured Report
+                    Executive Summary
+                    {activeView === 'summary' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary-600 rounded-t-full" />}
+                  </button>
+                  <button 
+                    onClick={() => setActiveView('timeline')}
+                    className={cn(
+                      "py-4 text-xs font-bold transition-all relative",
+                      activeView === 'timeline' ? "text-primary-600" : "text-[var(--muted-foreground)] hover:text-[var(--foreground)]"
+                    )}
+                  >
+                    Forensic Timeline
+                    {activeView === 'timeline' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary-600 rounded-t-full" />}
                   </button>
                 </div>
+                
+                <button
+                  onClick={() => navigate(`/security-report/${selectedThread.threadId}`)}
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-primary-200 text-primary-600 text-[10px] font-black uppercase tracking-wider hover:bg-primary-50 transition-all"
+                >
+                  <ArrowUpRight className="w-3 h-3" />
+                  Full Report
+                </button>
+              </div>
 
-                <ThreadSecuritySummary
-                  summary={selectedAnalysis}
-                  participantCount={selectedThread.participants.length}
-                />
-
-                <div className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-5 shadow-sm">
-                  <div className="flex items-center justify-between gap-4 mb-4">
-                    <div>
-                      <h3 className="text-lg font-black tracking-tight">Detailed Timeline</h3>
-                      <p className="text-sm text-[var(--muted-foreground)]">Email-by-email scoring with link verdicts</p>
+              {/* Scrollable Content Area */}
+              <div className="flex-1 overflow-y-auto p-6">
+                <div className="max-w-4xl mx-auto space-y-6">
+                  {/* Distribution Bar always visible at top of detail */}
+                  <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-4 shadow-sm">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-[var(--muted-foreground)]">Thread ID: {selectedThread.threadId}</span>
+                      <span className="text-xs font-bold">Investigation Active</span>
                     </div>
-                    <div className="text-right text-xs text-[var(--muted-foreground)]">
-                      {selectedAnalysis.confidenceLabel ? selectedAnalysis.confidenceLabel : selectedAnalysis.attackType || 'Thread review'}
+                    <div className="h-1.5 w-full bg-[var(--secondary)] rounded-full overflow-hidden flex">
+                      <div className="h-full bg-red-500" style={{ width: `${selectedAnalysis.overallRisk}%` }} />
+                      <div className="h-full bg-[var(--secondary)] flex-1" />
                     </div>
                   </div>
 
-                  <SecurityTimeline summary={selectedAnalysis} autoExpandSuspicious={true} />
+                  {activeView === 'summary' ? (
+                    <ThreadSecuritySummary
+                      summary={selectedAnalysis}
+                      participantCount={selectedThread.participants.length}
+                    />
+                  ) : (
+                    <div className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-5 shadow-sm">
+                      <SecurityTimeline summary={selectedAnalysis} autoExpandSuspicious={true} />
+                    </div>
+                  )}
                 </div>
               </div>
-            ) : (
-              <div className="rounded-2xl border border-dashed border-[var(--border)] bg-[var(--card)] p-12 shadow-sm text-center">
-                <Shield className="w-12 h-12 text-[var(--muted-foreground)] mx-auto mb-4 opacity-30" />
-                <p className="text-lg font-semibold text-[var(--foreground)]">Select a thread to view the report</p>
-                <p className="text-[var(--muted-foreground)] mt-1">Open any thread to review the executive summary and timeline</p>
-              </div>
-            )}
-          </div>
-        </div>
+            </>
+          ) : (
+            <div className="flex-1 flex flex-col items-center justify-center text-[var(--muted-foreground)] opacity-40 p-12 text-center">
+              <Shield className="w-16 h-16 mb-4" />
+              <h2 className="text-xl font-bold">Investigative Selection Required</h2>
+              <p className="max-w-xs mt-2 text-sm font-medium">Select a thread from the analysis repository to begin forensic review.</p>
+            </div>
+          )}
+        </main>
       </div>
     </div>
   );

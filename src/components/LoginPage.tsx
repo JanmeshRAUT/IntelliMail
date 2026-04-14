@@ -87,63 +87,55 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
         <div className="space-y-8">
           <div className="flex justify-center">
             <motion.div 
-              whileHover={{ scale: 1.05, rotate: 5, y: -5 }}
+              whileHover={{ scale: 1.05, rotate: 5 }}
               whileTap={{ scale: 0.95 }}
-              className="p-6 gradient-primary rounded-[3rem] shadow-[0_20px_50px_-12px_rgba(2,109,198,0.5)] border-4 border-white/20 relative group"
+              className="p-4 gradient-primary rounded-2xl shadow-lg border-2 border-white/20 relative group"
             >
-              <div className="absolute inset-0 bg-white/20 rounded-[3rem] opacity-0 group-hover:opacity-100 transition-opacity blur-xl" />
-              <Mail className="w-16 h-16 text-white relative z-10" />
+              <Mail className="w-10 h-10 text-white relative z-10" />
             </motion.div>
           </div>
           
-          <div className="space-y-4">
-            <h1 className="text-7xl font-extrabold tracking-tightest bg-clip-text text-transparent bg-gradient-to-b from-[var(--foreground)] to-[var(--foreground)]/60">
+          <div className="space-y-2">
+            <h1 className="text-4xl font-extrabold tracking-tightest bg-clip-text text-transparent bg-gradient-to-b from-[var(--foreground)] to-[var(--foreground)]/60">
               IntelliMail
             </h1>
-            <p className="text-xl text-[var(--muted-foreground)] font-medium max-w-sm mx-auto leading-relaxed">
-              Experience the next generation of <span className="text-[var(--foreground)] font-bold text-nowrap">intelligent communication</span>
+            <p className="text-md text-[var(--muted-foreground)] font-medium max-w-sm mx-auto leading-relaxed">
+              Intelligent communication.
             </p>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-4">
-          <motion.div 
-            whileHover={{ y: -8 }}
-            className="flex flex-col items-center gap-4 p-8 rounded-[2.5rem] bg-[var(--card)] text-center border border-[var(--border)] shadow-2xl shadow-black/[0.03] group hover:border-primary-500/30 transition-all"
-          >
-            <div className="p-4 bg-primary-50 dark:bg-primary-500/10 rounded-2xl group-hover:scale-110 transition-transform">
-              <Zap className="w-8 h-8 text-primary-500 shrink-0 fill-current" />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-2">
+          <div className="flex flex-col items-center gap-3 p-6 rounded-2xl bg-[var(--card)] text-center border border-[var(--border)] shadow-sm">
+            <div className="p-3 bg-primary-50 dark:bg-primary-500/10 rounded-xl">
+              <Zap className="w-6 h-6 text-primary-500 fill-current" />
             </div>
             <div>
-              <h3 className="font-bold text-lg text-[var(--foreground)]">Deep Intelligence</h3>
-              <p className="text-xs text-[var(--muted-foreground)] font-semibold mt-2 leading-relaxed">Contextual synthesis and automated thread summarization.</p>
+              <h3 className="font-bold text-md text-[var(--foreground)]">Intelligence</h3>
+              <p className="text-[10px] text-[var(--muted-foreground)] font-semibold mt-1">Contextual analysis and synthesis.</p>
             </div>
-          </motion.div>
+          </div>
 
-          <motion.div 
-            whileHover={{ y: -8 }}
-            className="flex flex-col items-center gap-4 p-8 rounded-[2.5rem] bg-[var(--card)] text-center border border-[var(--border)] shadow-2xl shadow-black/[0.03] group hover:border-emerald-500/30 transition-all"
-          >
-            <div className="p-4 bg-emerald-50 dark:bg-emerald-500/10 rounded-2xl group-hover:scale-110 transition-transform">
-              <ShieldCheck className="w-8 h-8 text-emerald-500 shrink-0" />
+          <div className="flex flex-col items-center gap-3 p-6 rounded-2xl bg-[var(--card)] text-center border border-[var(--border)] shadow-sm">
+            <div className="p-3 bg-emerald-50 dark:bg-emerald-500/10 rounded-xl">
+              <ShieldCheck className="w-6 h-6 text-emerald-500" />
             </div>
             <div>
-              <h3 className="font-bold text-lg text-[var(--foreground)]">Fortified Security</h3>
-              <p className="text-xs text-[var(--muted-foreground)] font-semibold mt-2 leading-relaxed">Enterprise-grade threat detection & behavioral protection.</p>
+              <h3 className="font-bold text-md text-[var(--foreground)]">Security</h3>
+              <p className="text-[10px] text-[var(--muted-foreground)] font-semibold mt-1">Fortified threat detection.</p>
             </div>
-          </motion.div>
+          </div>
         </div>
 
-        <div className="space-y-6 pt-6">
+        <div className="space-y-4 pt-4">
           <button
             type="button"
             onClick={handleGoogleLogin}
             disabled={loading}
-            className="w-full flex items-center justify-center gap-4 px-10 py-5 bg-neutral-950 text-white rounded-[2rem] font-bold hover:bg-neutral-900 transition-all shadow-[0_20px_40px_-10px_rgba(0,0,0,0.3)] active:scale-[0.98] disabled:opacity-60 dark:bg-white dark:text-neutral-950 dark:hover:bg-neutral-100 group relative overflow-hidden"
+            className="w-full flex items-center justify-center gap-3 px-8 py-4 bg-neutral-950 text-white rounded-xl font-bold hover:bg-neutral-900 transition-all shadow-md active:scale-[0.98] disabled:opacity-60 dark:bg-white dark:text-neutral-950 dark:hover:bg-neutral-100 group relative overflow-hidden"
           >
-            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
             {!loading && (
-              <svg className="w-6 h-6" viewBox="0 0 24 24">
+              <svg className="w-5 h-5" viewBox="0 0 24 24">
                 <path
                   fill="currentColor"
                   d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
@@ -162,8 +154,8 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
                 />
               </svg>
             )}
-            <span className="relative z-10 text-lg">
-              {loading ? 'Securing Session...' : 'Continue with Google'}
+            <span className="relative z-10 text-md">
+              {loading ? 'Securing...' : 'Continue with Google'}
             </span>
           </button>
 
