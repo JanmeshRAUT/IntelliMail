@@ -1,40 +1,17 @@
 version: '3.8'
 
 services:
-  # Python ML Backend (Hugging Face Interface)
-  intellmail-ml:
-    build:
-      context: ./intellmail
-      dockerfile: Dockerfile
-    container_name: intellmail-ml
-    ports:
-      - "7860:7860"
-    env_file:
-      - .env
-    restart: always
-    healthcheck:
-      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:7860/health')"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-
-  # Node/React Frontend Proxy Application
-  intellmail-app:
+  # IntelliMail Unified Service (Frontend + Proxy Server)
+  # Connects to Hugging Face via environment variables
+  intellmail:
     build:
       context: .
       dockerfile: Dockerfile
     container_name: intellmail-app
     ports:
-      - "3000:3000"
-    environment:
-      - NODE_ENV=production
-      - ML_SERVICE_URL=http://intellmail-ml:7860
-      - LSTM_SERVICE_URL=http://intellmail-ml:7860/
+      - "5000:5000" # Main App & API
     env_file:
       - .env
-    depends_on:
-      intellmail-ml:
-        condition: service_started
     restart: always
 
 networks:

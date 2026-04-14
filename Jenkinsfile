@@ -45,15 +45,11 @@ pipeline {
         stage('Verify Health') {
             steps {
                 script {
-                    echo "Verifying health of deployed services..."
-                    // Wait for services to stabilize
+                    echo "Verifying health of the unified service..."
                     sleep 10
-                    
-                    bat "docker ps --filter name=intellmail"
-                    
+                    bat "docker ps --filter name=intellmail-app"
                     echo "Deployment Complete."
-                    echo "Frontend/App: http://localhost:3000"
-                    echo "ML Monitor: http://localhost:7860"
+                    echo "Access Application at http://localhost:5000"
                 }
             }
         }

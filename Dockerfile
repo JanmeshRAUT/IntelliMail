@@ -1,36 +1,27 @@
-# Build Stage
-FROM node:20-alpine AS builder
+# Use Node.js as the base image
+FROM node:20-slim
 
+# Create app directory
 WORKDIR /app
 
-# Install dependencies for building
+# Copy package manifest files
 COPY package*.json ./
+
+# Install all dependencies (including devDependencies for tsx)
 RUN npm install
 
-# Copy source and build
+# Copy the rest of the application code
 COPY . .
+
+# Build the frontend assets
 RUN npm run build
 
-# Production Stage
-FROM node:20-alpine
+# Expose the server port (aligned with .env and server.ts)
+EXPOSE 5000
 
-WORKDIR /app
-
-# Install tsx globally or locally to run the server.ts
-COPY package*.json ./
-RUN npm install --production
-
-# Copy built frontend assets
-COPY --from=builder /app/dist ./dist
-# Copy server source (it will run via tsx in production for simplicity in this setup)
-COPY --from=builder /app/server.ts ./
-COPY --from=builder /app/src ./src
-
-# Default environment variables
+# Environment variables
 ENV NODE_ENV=production
-ENV PORT=3000
+ENV PORT=5000
 
-EXPOSE 3000
-
-# Start the server using npx tsx
-CMD ["npx", "tsx", "server.ts"]
+# Start the application (server.ts handles both API and Frontend serving)
+CMD ["npm", "start"]
