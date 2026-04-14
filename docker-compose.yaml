@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  intellmail-backend:
+    build:
+      context: ./intellmail
+      dockerfile: Dockerfile
+    container_name: intellmail-service
+    ports:
+      - "7860:7860"
+    env_file:
+      - .env
+    restart: always
+
+networks:
+  default:
+    name: intellmail-network

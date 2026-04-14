@@ -211,6 +211,7 @@ export function analyzeThreadEmails(thread: Thread): ThreadSecuritySummary {
 }
 
 async function scoreUrlWithMl(url: string): Promise<{ prediction: 'phishing' | 'legitimate'; confidence: number } | null> {
+  try {
     const endpoint = joinUrl(ML_SERVICE_URL, 'predict-url');
     const response = await axios.post(endpoint, { url }, { 
       ...axiosConfig,
@@ -236,7 +237,7 @@ async function scoreEmailWithLstm(
   subject: string,
   body: string
 ): Promise<{ prediction: 0 | 1; confidence: number; band: LstmPredictionBand } | null> {
-  const endpoints = [`${LSTM_SERVICE_URL}/predict-email`, `${ML_SERVICE_URL}/predict-email`];
+  const endpoints = [LSTM_SERVICE_URL, ML_SERVICE_URL];
 
   for (const baseUrl of endpoints) {
     try {
@@ -292,16 +293,6 @@ async function analyzeEmailWithMl(
   const trustedSenderDomain = isTrustedDomain(domain);
   const lstmResult = await scoreEmailWithLstm(email.subject, email.body);
 
-  if (lstmResult) {
-    console.info(
-      '[LSTM] prediction log',
-      JSON.stringify({
-        subject: email.subject,
-        prediction: lstmResult.prediction,
-        confidence: Number(lstmResult.confidence.toFixed(4)),
-      })
-    );
-  }
 
   const linkAnalysis: LinkSecurityAnalysis[] = [];
 
