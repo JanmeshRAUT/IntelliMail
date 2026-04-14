@@ -244,6 +244,13 @@ export const SecurityDashboard: React.FC<SecurityDashboardProps> = ({
     { label: 'Bulk email candidates', value: bulkEmailThreads, icon: Mail, tone: 'from-amber-500 to-orange-600', note: 'Newsletter-style traffic' },
   ];
 
+  const handleRefresh = () => {
+    if (!onAnalyzeThreads) return;
+    // Clear cache and force re-analysis of all threads
+    setAnalyses(new Map());
+    analyzeAllThreads(threads);
+  };
+
   return (
     <div className="min-h-full bg-[var(--background)] text-[var(--foreground)] transition-colors">
       <div className="max-w-7xl mx-auto px-8 py-8 space-y-6">
@@ -269,17 +276,28 @@ export const SecurityDashboard: React.FC<SecurityDashboardProps> = ({
             </div>
 
             <div className="flex flex-col items-start lg:items-end gap-3">
-              {loading ? (
-                <div className="inline-flex items-center gap-2 rounded-full border border-primary-200 bg-primary-50 px-4 py-2 text-sm font-semibold text-primary-700 dark:border-primary-500/30 dark:bg-primary-500/10 dark:text-primary-300">
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Analyzing threads
-                </div>
-              ) : (
-                <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300">
-                  <ShieldCheck className="w-4 h-4" />
-                  {securityPostureLabel}
-                </div>
-              )}
+              <div className="flex gap-2 items-center">
+                {loading ? (
+                  <div className="inline-flex items-center gap-2 rounded-full border border-primary-200 bg-primary-50 px-4 py-2 text-sm font-semibold text-primary-700 dark:border-primary-500/30 dark:bg-primary-500/10 dark:text-primary-300">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Analyzing threads
+                  </div>
+                ) : (
+                  <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300">
+                    <ShieldCheck className="w-4 h-4" />
+                    {securityPostureLabel}
+                  </div>
+                )}
+                <button
+                  className="ml-2 inline-flex items-center gap-1 rounded-full border border-primary-200 bg-white px-3 py-1.5 text-xs font-semibold text-primary-700 hover:bg-primary-50 dark:border-primary-500/30 dark:bg-primary-500/10 dark:text-primary-300"
+                  onClick={handleRefresh}
+                  disabled={loading}
+                  title="Refresh and re-analyze all threads"
+                >
+                  <Loader2 className={loading ? 'w-3 h-3 animate-spin' : 'w-3 h-3'} />
+                  Refresh
+                </button>
+              </div>
               <div className="flex items-center gap-3 text-sm text-[var(--muted-foreground)]">
                 <ArrowUpRight className="w-4 h-4" />
                 {suspiciousLinkCount} suspicious link{ suspiciousLinkCount === 1 ? '' : 's' } identified

@@ -1,20 +1,21 @@
+import 'dotenv/config';
 import express from 'express';
 import { createServer as createViteServer } from 'vite';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { google } from 'googleapis';
-import dotenv from 'dotenv';
 import { analyzeThreadEmailsWithMl, analyzeMultipleThreadsWithMl } from './src/lib/securityService.js';
 import type { Thread } from './src/lib/types.js';
 
-dotenv.config();
+console.log('ML_SERVICE_URL:', process.env.ML_SERVICE_URL);
+console.log('LSTM_SERVICE_URL:', process.env.LSTM_SERVICE_URL);
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 async function startServer() {
   const app = express();
-  const PORT = 3000;
+  const PORT = process.env.PORT || 3000;
 
   app.use(express.json({ limit: '50mb' }));
   app.use(express.urlencoded({ limit: '50mb', extended: true }));

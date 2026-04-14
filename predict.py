@@ -5,7 +5,7 @@ from __future__ import annotations
 import os
 from typing import Dict
 
-from model import PhishingURLModel
+from ml_model.model import PhishingURLModel
 
 _MODEL = None
 DEFAULT_MODEL_PATH = "artifacts/models/phishing_url_model.pkl"

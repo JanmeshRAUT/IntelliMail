@@ -24,12 +24,27 @@ function normalizeLoopbackUrl(url: string): string {
   return url.replace('://localhost', '://127.0.0.1');
 }
 
+function joinUrl(base: string, path: string): string {
+  if (!base) return '';
+  const cleanBase = base.endsWith('/') ? base.slice(0, -1) : base;
+  const cleanPath = path.startsWith('/') ? path : `/${path}`;
+  return `${cleanBase}${cleanPath}`;
+}
+
 const ML_SERVICE_URL = normalizeLoopbackUrl(
   runtimeEnv.VITE_ML_SERVICE_URL || nodeEnv.ML_SERVICE_URL || 'http://127.0.0.1:5000'
 );
 const LSTM_SERVICE_URL = normalizeLoopbackUrl(
   runtimeEnv.VITE_LSTM_SERVICE_URL || nodeEnv.LSTM_SERVICE_URL || 'http://127.0.0.1:5001'
 );
+const HF_API_KEY = nodeEnv.HUGGINGFACE_API_KEY;
+
+const axiosConfig = HF_API_KEY ? {
+  headers: {
+    'Authorization': `Bearer ${HF_API_KEY}`,
+    'Content-Type': 'application/json',
+  }
+} : {};
 const TRUSTED_DOMAINS = ['coursera.org', 'google.com', 'microsoft.com', 'linkedin.com'];
 const SUSPICIOUS_TLDS = ['xyz', 'ru', 'tk'];
 
@@ -196,8 +211,11 @@ export function analyzeThreadEmails(thread: Thread): ThreadSecuritySummary {
 }
 
 async function scoreUrlWithMl(url: string): Promise<{ prediction: 'phishing' | 'legitimate'; confidence: number } | null> {
-  try {
-    const response = await axios.post(`${ML_SERVICE_URL}/predict-url`, { url }, { timeout: 8000 });
+    const endpoint = joinUrl(ML_SERVICE_URL, 'predict-url');
+    const response = await axios.post(endpoint, { url }, { 
+      ...axiosConfig,
+      timeout: 8000 
+    });
     const data = response.data as { prediction?: string; confidence?: number };
 
     if (data.prediction !== 'phishing' && data.prediction !== 'legitimate') {
@@ -220,12 +238,16 @@ async function scoreEmailWithLstm(
 ): Promise<{ prediction: 0 | 1; confidence: number; band: LstmPredictionBand } | null> {
   const endpoints = [`${LSTM_SERVICE_URL}/predict-email`, `${ML_SERVICE_URL}/predict-email`];
 
-  for (const endpoint of endpoints) {
+  for (const baseUrl of endpoints) {
     try {
+      const endpoint = joinUrl(baseUrl, 'predict-email');
       const response = await axios.post(
         endpoint,
         { text: `${subject}\n\n${body}` },
-        { timeout: 8000 }
+        { 
+          ...axiosConfig,
+          timeout: 8000 
+        }
       );
 
       const data = response.data as { prediction?: number; confidence?: number };
