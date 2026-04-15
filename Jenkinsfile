@@ -48,12 +48,8 @@ pipeline {
                     echo "Verifying health of the unified service..."
                     sleep 10
                     bat "docker ps --filter name=intellmail-app"
-                    bat "docker ps --filter name=intellmail-prometheus"
-                    bat "docker ps --filter name=intellmail-grafana"
                     echo "Deployment Complete."
                     echo "Access Application at http://localhost:5000"
-                    echo "Access Grafana at http://localhost:3001 (Admin:admin)"
-                    echo "Access Prometheus at http://localhost:9090"
                 }
             }
         }
