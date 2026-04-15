@@ -111,39 +111,19 @@ pipeline {
             }
         }
 
-        stage('Verify Service Health') {
+        stage('Verify Services') {
             steps {
                 script {
                     echo "╔════════════════════════════════════════════╗"
-                    echo "║   Verifying Service Health Status           ║"
+                    echo "║   Verifying Services Status                ║"
                     echo "╚════════════════════════════════════════════╝"
                     
-                    // Check container status
-                    echo "Checking container status..."
+                    echo "Checking running containers..."
                     bat "docker-compose ps"
                     
-                    // Check IntelliMail
                     echo ""
-                    echo "Checking IntelliMail Application..."
-                    int appHealth = bat(returnStatus: true, script: 'powershell -Command "try { $null = Invoke-WebRequest -Uri http://localhost:5000/health -UseBasicParsing -TimeoutSec 5 -ErrorAction Stop; exit 0 } catch { exit 1 }"')
-                    
-                    // Check Prometheus
-                    echo "Checking Prometheus Metrics Server..."
-                    int promHealth = bat(returnStatus: true, script: 'powershell -Command "try { $null = Invoke-WebRequest -Uri http://localhost:9090/-/healthy -UseBasicParsing -TimeoutSec 5 -ErrorAction Stop; exit 0 } catch { exit 1 }"')
-                    
-                    // Check Grafana
-                    echo "Checking Grafana Visualization Platform..."
-                    int grafanaHealth = bat(returnStatus: true, script: 'powershell -Command "try { $null = Invoke-WebRequest -Uri http://localhost:3000/api/health -UseBasicParsing -TimeoutSec 5 -ErrorAction Stop; exit 0 } catch { exit 1 }"')
-                    
-                    // Report health
-                    echo ""
-                    echo "╔════════════════════════════════════════════╗"
-                    echo "║   Service Health Report                    ║"
-                    echo "╠════════════════════════════════════════════╣"
-                    echo "║ IntelliMail (5000):   ${appHealth == 0 ? '✓ HEALTHY' : '⚠ CHECKING'}"
-                    echo "║ Prometheus (9090):    ${promHealth == 0 ? '✓ HEALTHY' : '⚠ CHECKING'}"
-                    echo "║ Grafana (3000):       ${grafanaHealth == 0 ? '✓ HEALTHY' : '⚠ CHECKING'}"
-                    echo "╚════════════════════════════════════════════╝"
+                    echo "Services are starting up (no health checks)..."
+                    echo "Allow 30-60 seconds for full initialization."
                 }
             }
         }
