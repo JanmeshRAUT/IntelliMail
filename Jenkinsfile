@@ -47,9 +47,25 @@ pipeline {
                 script {
                     echo "Verifying health of the unified service..."
                     sleep 10
+                    
+                    echo "Checking IntelliMail Application..."
                     bat "docker ps --filter name=intellmail-app"
+                    
+                    echo "Checking Prometheus..."
+                    bat "docker ps --filter name=intellmail-prometheus"
+                    
+                    echo "Checking Grafana..."
+                    bat "docker ps --filter name=intellmail-grafana"
+                    
                     echo "Deployment Complete."
-                    echo "Access Application at http://localhost:5000"
+                    echo ""
+                    echo "==========================================="
+                    echo "IntelliMail Stack URLs:"
+                    echo "==========================================="
+                    echo "Application:  http://localhost:5000"
+                    echo "Prometheus:   http://localhost:9090"
+                    echo "Grafana:      http://localhost:3000 (Admin:admin)"
+                    echo "==========================================="
                 }
             }
         }
