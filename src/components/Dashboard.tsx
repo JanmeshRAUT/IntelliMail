@@ -179,6 +179,12 @@ export default function Dashboard() {
     return matchesSearch && matchesFilter;
   });
 
+  const totalThreads = threads.length;
+  const threatThreads = threads.filter((thread) => thread.analysis?.threats?.length > 0).length;
+  const urgentThreads = threads.filter((thread) => thread.analysis?.priority === 'High').length;
+  const matchingThreads = filteredThreads.length;
+  const currentFilterLabel = filter === 'All' ? 'All categories' : filter;
+
   // Convert localData threads to security analysis format
   const convertToSecurityThreads = (): SecurityThread[] => {
     return threads.map(thread => {
@@ -284,7 +290,30 @@ export default function Dashboard() {
               </div>
             </header>
 
-            <div className="flex flex-col md:flex-row gap-3">
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+              <div className="rounded-[2rem] border border-[var(--border)] bg-[var(--card)] p-5 shadow-sm">
+                <p className="text-xs font-bold uppercase tracking-[0.2em] text-[var(--muted-foreground)]">Threads indexed</p>
+                <p className="mt-4 text-3xl font-extrabold text-[var(--foreground)]">{totalThreads}</p>
+                <p className="mt-2 text-sm text-[var(--muted-foreground)]">Total conversation threads synced to IntelliMail.</p>
+              </div>
+              <div className="rounded-[2rem] border border-[var(--border)] bg-[var(--card)] p-5 shadow-sm">
+                <p className="text-xs font-bold uppercase tracking-[0.2em] text-[var(--muted-foreground)]">Threats</p>
+                <p className="mt-4 text-3xl font-extrabold text-red-600">{threatThreads}</p>
+                <p className="mt-2 text-sm text-[var(--muted-foreground)]">Threads with one or more security threat indicators.</p>
+              </div>
+              <div className="rounded-[2rem] border border-[var(--border)] bg-[var(--card)] p-5 shadow-sm">
+                <p className="text-xs font-bold uppercase tracking-[0.2em] text-[var(--muted-foreground)]">Urgent risk</p>
+                <p className="mt-4 text-3xl font-extrabold text-amber-600">{urgentThreads}</p>
+                <p className="mt-2 text-sm text-[var(--muted-foreground)]">High-priority threads that need immediate review.</p>
+              </div>
+              <div className="rounded-[2rem] border border-[var(--border)] bg-[var(--card)] p-5 shadow-sm">
+                <p className="text-xs font-bold uppercase tracking-[0.2em] text-[var(--muted-foreground)]">Active filter</p>
+                <p className="mt-4 text-3xl font-extrabold text-[var(--foreground)]">{matchingThreads}</p>
+                <p className="mt-2 text-sm text-[var(--muted-foreground)]">Showing {currentFilterLabel} ({filter === 'All' ? 'all threads' : `${filter} threads`}).</p>
+              </div>
+            </div>
+
+            <div className="flex flex-col md:flex-row gap-3 sticky top-[74px] z-30 bg-[var(--background)]/95 backdrop-blur-md rounded-3xl p-4 border border-[var(--border)]">
               <div className="relative flex-1">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--muted-foreground)]" />
                 <input 
