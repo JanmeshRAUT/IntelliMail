@@ -35,13 +35,13 @@ pipeline {
                         // Copy the secret file to the workspace .env for docker-compose to use
                         bat "copy /Y %ENV_PATH% .env"
                         
-                        // Build and start the infrastructure with timeout
+                        // Build and start the infrastructure
                         echo "Building and starting Docker containers..."
-                        bat "timeout /t 0 /nobreak && docker-compose up -d --build"
+                        bat "docker-compose up -d --build"
                         
-                        // Wait for services to stabilize
-                        echo "Waiting for services to stabilize (30 seconds)..."
-                        bat "timeout /t 30 /nobreak"
+                        // Wait for services to stabilize (30 seconds)
+                        echo "Waiting for services to stabilize..."
+                        sleep(time: 30, unit: 'SECONDS')
                     }
                 }
             }
@@ -54,7 +54,7 @@ pipeline {
                     
                     // Wait for containers to stabilize
                     echo "Waiting for containers to be ready..."
-                    bat "timeout /t 15 /nobreak"
+                    sleep(time: 15, unit: 'SECONDS')
                     
                     echo "Checking IntelliMail Application..."
                     bat "docker ps --filter name=intellmail-app"
@@ -65,9 +65,8 @@ pipeline {
                     echo "Checking Grafana..."
                     bat "docker ps --filter name=intellmail-grafana"
                     
-                    // Verify application is responding
-                    echo "Verifying application endpoints..."
-                    bat "echo. && echo Testing application health endpoint... && echo. || exit /b 0"
+                    // Log deployment summary
+                    echo "Deployment health check completed."
                     
                     echo ""
                     echo "==========================================="
