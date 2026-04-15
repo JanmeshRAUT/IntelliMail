@@ -25,6 +25,22 @@ View your app in AI Studio: https://ai.studio/apps/a34b9eec-f1b4-41a4-80af-16ec3
 - URL model API on `http://localhost:5000`
 - LSTM model API on `http://localhost:5001`
 
+### Monitoring with Prometheus and Grafana
+
+If you want a monitoring stack, run:
+
+```powershell
+docker compose up --build
+```
+
+Then open:
+
+- Prometheus: `http://localhost:9090`
+- Grafana: `http://localhost:3000` (admin/admin)
+- App metrics endpoint: `http://localhost:5000/metrics`
+
+Prometheus is configured to scrape the Node app at `/metrics` and Grafana is provisioned with a default Prometheus datasource.
+
 ## Jenkins CI Setup
 
 You can run this project in Jenkins with the included `Jenkinsfile`.
