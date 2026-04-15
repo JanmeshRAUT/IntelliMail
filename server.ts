@@ -6,6 +6,20 @@ import { fileURLToPath } from 'url';
 import { google } from 'googleapis';
 import { analyzeThreadEmailsWithMl, analyzeMultipleThreadsWithMl } from './src/lib/securityService.js';
 import type { Thread } from './src/lib/types.js';
+import promBundle from 'express-prom-bundle';
+
+const metricsMiddleware = promBundle({
+  includeMethod: true,
+  includePath: true,
+  includeStatusCode: true,
+  normalizePath: [
+    ['^/api/security/analyze-thread/.*', '/api/security/analyze-thread/#id'],
+    ['^/api/gmail/fetch/.*', '/api/gmail/fetch/#id']
+  ],
+  promClient: {
+    collectDefaultMetrics: {}
+  }
+});
 
 console.log('ML_SERVICE_URL:', process.env.ML_SERVICE_URL);
 console.log('LSTM_SERVICE_URL:', process.env.LSTM_SERVICE_URL);
@@ -16,6 +30,9 @@ const __dirname = path.dirname(__filename);
 async function startServer() {
   const app = express();
   const PORT = process.env.PORT || 3000;
+
+  // Prometheus Metrics
+  app.use(metricsMiddleware);
 
   app.use(express.json({ limit: '50mb' }));
   app.use(express.urlencoded({ limit: '50mb', extended: true }));

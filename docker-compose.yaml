@@ -2,18 +2,45 @@ version: '3.8'
 
 services:
   # IntelliMail Unified Service (Frontend + Proxy Server)
-  # Connects to Hugging Face via environment variables
   intellmail:
     build:
       context: .
       dockerfile: Dockerfile
     container_name: intellmail-app
     ports:
-      - "5000:5000" # Main App & API
+      - "5000:5000"
     env_file:
       - .env
     restart: always
+    networks:
+      - monitor-net
+
+  # Prometheus for Metrics Collection
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: intellmail-prometheus
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+    restart: always
+    networks:
+      - monitor-net
+
+  # Grafana for Visualization
+  grafana:
+    image: grafana/grafana:latest
+    container_name: intellmail-grafana
+    ports:
+      - "3001:3000" # Mapped to 3001 to avoid common 3000 conflicts
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    depends_on:
+      - prometheus
+    restart: always
+    networks:
+      - monitor-net
 
 networks:
-  default:
-    name: intellmail-network
+  monitor-net:
+    driver: bridge
