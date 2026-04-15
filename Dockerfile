@@ -1,27 +1,42 @@
-# Use Node.js as the base image
-FROM node:20-slim
+# Stage 1: Builder
+FROM node:20-slim AS builder
 
-# Create app directory
 WORKDIR /app
 
 # Copy package manifest files
 COPY package*.json ./
 
-# Install all dependencies (including devDependencies for tsx)
-RUN npm install
+# Install dependencies (with cache layer)
+RUN npm ci --only=production && npm cache clean --force
 
-# Copy the rest of the application code
+# Copy application code
 COPY . .
 
 # Build the frontend assets
 RUN npm run build
 
-# Expose the server port (aligned with .env and server.ts)
+# Stage 2: Runtime (minimal image)
+FROM node:20-slim
+
+WORKDIR /app
+
+# Copy only necessary files from builder
+COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/package*.json ./
+COPY --from=builder /app/server.ts ./
+COPY --from=builder /app/src ./src
+
+# Expose the server port
 EXPOSE 5000
 
 # Environment variables
 ENV NODE_ENV=production
 ENV PORT=5000
 
-# Start the application (server.ts handles both API and Frontend serving)
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+    CMD node -e "require('http').get('http://localhost:5000/health', (r) => {if (r.statusCode !== 200) throw new Error(r.statusCode)})"
+
+# Start the application
 CMD ["npm", "start"]

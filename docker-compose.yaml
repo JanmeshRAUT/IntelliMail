@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # IntelliMail Unified Service (Frontend + Proxy Server)
   # Connects to Hugging Face via environment variables

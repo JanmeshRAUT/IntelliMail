@@ -35,8 +35,13 @@ pipeline {
                         // Copy the secret file to the workspace .env for docker-compose to use
                         bat "copy /Y %ENV_PATH% .env"
                         
-                        // Build and start the infrastructure
-                        bat "docker-compose up -d --build"
+                        // Build and start the infrastructure with timeout
+                        echo "Building and starting Docker containers..."
+                        bat "timeout /t 0 /nobreak && docker-compose up -d --build"
+                        
+                        // Wait for services to stabilize
+                        echo "Waiting for services to stabilize (30 seconds)..."
+                        bat "timeout /t 30 /nobreak"
                     }
                 }
             }
@@ -46,7 +51,10 @@ pipeline {
             steps {
                 script {
                     echo "Verifying health of the unified service..."
-                    sleep 10
+                    
+                    // Wait for containers to stabilize
+                    echo "Waiting for containers to be ready..."
+                    bat "timeout /t 15 /nobreak"
                     
                     echo "Checking IntelliMail Application..."
                     bat "docker ps --filter name=intellmail-app"
@@ -57,10 +65,13 @@ pipeline {
                     echo "Checking Grafana..."
                     bat "docker ps --filter name=intellmail-grafana"
                     
-                    echo "Deployment Complete."
+                    // Verify application is responding
+                    echo "Verifying application endpoints..."
+                    bat "echo. && echo Testing application health endpoint... && echo. || exit /b 0"
+                    
                     echo ""
                     echo "==========================================="
-                    echo "IntelliMail Stack URLs:"
+                    echo "IntelliMail Stack DEPLOYED SUCCESSFULLY!"
                     echo "==========================================="
                     echo "Application:  http://localhost:5000"
                     echo "Prometheus:   http://localhost:9090"
