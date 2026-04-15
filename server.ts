@@ -4,6 +4,7 @@ import { createServer as createViteServer } from 'vite';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { google } from 'googleapis';
+import client from 'prom-client';
 import { analyzeThreadEmailsWithMl, analyzeMultipleThreadsWithMl } from './src/lib/securityService.js';
 import type { Thread } from './src/lib/types.js';
 
@@ -16,6 +17,70 @@ const __dirname = path.dirname(__filename);
 async function startServer() {
   const app = express();
   const PORT = process.env.PORT || 3000;
+
+  const register = new client.Registry();
+  register.setDefaultLabels({ app: 'intellmail' });
+  client.collectDefaultMetrics({ register, prefix: 'intellmail_' });
+
+  const httpRequestsTotal = new client.Counter({
+    name: 'intellmail_http_requests_total',
+    help: 'Total number of HTTP requests',
+    labelNames: ['method', 'route', 'status_code'],
+  });
+
+  const httpRequestDurationSeconds = new client.Histogram({
+    name: 'intellmail_http_request_duration_seconds',
+    help: 'HTTP request duration in seconds',
+    labelNames: ['method', 'route', 'status_code'],
+    buckets: [0.005, 0.01, 0.025, 0.05, 0.1, 0.3, 1, 2.5, 5, 10],
+  });
+
+  const httpRequestErrorsTotal = new client.Counter({
+    name: 'intellmail_http_request_errors_total',
+    help: 'Total number of HTTP error responses',
+    labelNames: ['method', 'route', 'status_code'],
+  });
+
+  register.registerMetric(httpRequestsTotal);
+  register.registerMetric(httpRequestDurationSeconds);
+  register.registerMetric(httpRequestErrorsTotal);
+
+  function durationInSeconds(start: [number, number]) {
+    const delta = process.hrtime(start);
+    return delta[0] + delta[1] / 1e9;
+  }
+
+  app.use((req, res, next) => {
+    if (req.path === '/metrics') return next();
+
+    const start = process.hrtime();
+    res.on('finish', () => {
+      const route = req.route?.path || req.path;
+      const labels = {
+        method: req.method,
+        route,
+        status_code: String(res.statusCode),
+      };
+
+      httpRequestsTotal.inc(labels);
+      httpRequestDurationSeconds.observe(labels, durationInSeconds(start));
+      if (res.statusCode >= 500) {
+        httpRequestErrorsTotal.inc(labels);
+      }
+    });
+
+    next();
+  });
+
+  app.get('/metrics', async (_req, res) => {
+    try {
+      res.set('Content-Type', register.contentType);
+      res.end(await register.metrics());
+    } catch (error) {
+      console.error('Metrics error:', error);
+      res.status(500).send('Unable to collect metrics');
+    }
+  });
 
   app.use(express.json({ limit: '50mb' }));
   app.use(express.urlencoded({ limit: '50mb', extended: true }));
