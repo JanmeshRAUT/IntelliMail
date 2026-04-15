@@ -18,6 +18,7 @@ import {
   upsertThreads,
 } from '../lib/localData';
 import { requestGoogleAccessToken } from '../lib/googleAuth';
+import RiskBadge from './RiskBadge';
 import { SecurityDashboard } from './SecurityDashboard';
 import type { Thread as SecurityThread, Email as SecurityEmail } from '../lib/types';
 
@@ -178,6 +179,22 @@ export default function Dashboard() {
     const matchesFilter = filter === 'All' || t.analysis?.category === filter;
     return matchesSearch && matchesFilter;
   });
+
+  const getThreadRiskLevel = (priority?: string) => {
+    if (!priority) return 'Low' as const;
+    const normalized = priority.toLowerCase();
+    if (normalized.includes('high') || normalized.includes('critical') || normalized.includes('urgent')) return 'High' as const;
+    if (normalized.includes('medium') || normalized.includes('moderate')) return 'Medium' as const;
+    return 'Low' as const;
+  };
+
+  const getThreatSummary = (thread: Thread) => {
+    const count = thread.analysis?.threats?.length ?? 0;
+    if (count > 0) {
+      return `${count} threat keyword${count > 1 ? 's' : ''} detected`;
+    }
+    return 'No threat keywords detected';
+  };
 
   const totalThreads = threads.length;
   const threatThreads = threads.filter((thread) => thread.analysis?.threats?.length > 0).length;
@@ -385,8 +402,8 @@ export default function Dashboard() {
                         )}
                         
                         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-                          <div className="space-y-1 flex-1 min-w-0">
-                            <div className="flex items-center gap-3">
+                          <div className="space-y-2 flex-1 min-w-0">
+                            <div className="flex flex-wrap items-center gap-3">
                               <h3 className="font-bold text-lg text-[var(--foreground)] truncate tracking-tight">
                                 {thread.subject}
                               </h3>
@@ -394,8 +411,24 @@ export default function Dashboard() {
                                 <ShieldAlert className="w-4 h-4 text-red-500" />
                               )}
                             </div>
+                            <div className="flex flex-wrap items-center gap-2">
+                              {thread.analysis ? (
+                                <RiskBadge
+                                  level={getThreadRiskLevel(thread.analysis.priority)}
+                                  size="sm"
+                                  showScore={false}
+                                />
+                              ) : (
+                                <span className="inline-flex items-center rounded-full border border-[var(--border)] bg-[var(--secondary)] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--muted-foreground)]">
+                                  No risk data
+                                </span>
+                              )}
+                              <span className="inline-flex items-center rounded-full border border-[var(--border)] bg-[var(--secondary)] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--muted-foreground)]">
+                                {thread.analysis?.category || 'Unknown category'}
+                              </span>
+                            </div>
                             <p className="text-[var(--muted-foreground)] text-xs leading-relaxed font-semibold line-clamp-1 max-w-2xl">
-                              {thread.analysis?.summary || "System processing conversation cluster."}
+                              {thread.analysis?.summary || 'System processing conversation cluster.'}
                             </p>
                           </div>
                           
@@ -419,6 +452,14 @@ export default function Dashboard() {
                               )}
                             </div>
                           </div>
+                        </div>
+                        <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+                          <p className="text-[11px] uppercase tracking-[0.18em] text-[var(--muted-foreground)] font-semibold">
+                            {getThreatSummary(thread)}
+                          </p>
+                          <span className="inline-flex items-center rounded-full bg-primary-600 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-white shadow-sm shadow-primary-500/20">
+                            Review thread
+                          </span>
                         </div>
                       </Link>
                     </motion.div>
