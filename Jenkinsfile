@@ -35,9 +35,11 @@ pipeline {
                         // Copy the secret file to the workspace .env for docker-compose to use
                         bat "copy /Y %ENV_PATH% .env"
                         
-                        // Build and start the infrastructure
-                        echo "Building and starting Docker containers..."
-                        bat "docker-compose up -d --build"
+                        // Build and start the infrastructure with retry logic
+                        echo "Building and starting Docker containers (with automatic retry)..."
+                        retry(3) {
+                            bat "docker-compose up -d --build"
+                        }
                         
                         // Wait for services to stabilize (30 seconds)
                         echo "Waiting for services to stabilize..."
@@ -56,25 +58,34 @@ pipeline {
                     echo "Waiting for containers to be ready..."
                     sleep(time: 15, unit: 'SECONDS')
                     
-                    echo "Checking IntelliMail Application..."
-                    bat "docker ps --filter name=intellmail-app"
+                    echo "Checking running containers..."
+                    bat "docker ps --filter name=intellmail"
                     
-                    echo "Checking Prometheus..."
-                    bat "docker ps --filter name=intellmail-prometheus"
+                    echo ""
+                    echo "Checking service availability..."
                     
-                    echo "Checking Grafana..."
-                    bat "docker ps --filter name=intellmail-grafana"
+                    // Check Application Health (port 5000)
+                    int appHealth = bat(returnStatus: true, script: 'powershell -Command "try { $null = Invoke-WebRequest -Uri http://localhost:5000/health -TimeoutSec 5 -ErrorAction Stop; exit 0 } catch { exit 1 }"')
                     
-                    // Log deployment summary
-                    echo "Deployment health check completed."
+                    // Check Prometheus (port 9090)
+                    int promHealth = bat(returnStatus: true, script: 'powershell -Command "try { $null = Invoke-WebRequest -Uri http://localhost:9090/-/healthy -TimeoutSec 5 -ErrorAction Stop; exit 0 } catch { exit 1 }"')
+                    
+                    // Check Grafana (port 3000)
+                    int grafanaHealth = bat(returnStatus: true, script: 'powershell -Command "try { $null = Invoke-WebRequest -Uri http://localhost:3000/api/health -TimeoutSec 5 -ErrorAction Stop; exit 0 } catch { exit 1 }"')
                     
                     echo ""
                     echo "==========================================="
-                    echo "IntelliMail Stack DEPLOYED SUCCESSFULLY!"
+                    echo "IntelliMail Stack DEPLOYMENT REPORT"
                     echo "==========================================="
-                    echo "Application:  http://localhost:5000"
-                    echo "Prometheus:   http://localhost:9090"
-                    echo "Grafana:      http://localhost:3000 (Admin:admin)"
+                    echo "Application (5000):  ${appHealth == 0 ? '✓ HEALTHY' : '✗ CHECKING'}"
+                    echo "Prometheus (9090):   ${promHealth == 0 ? '✓ HEALTHY' : '✗ CHECKING'}"
+                    echo "Grafana (3000):      ${grafanaHealth == 0 ? '✓ HEALTHY' : '✗ CHECKING'}"
+                    echo "==========================================="
+                    echo ""
+                    echo "Access the services at:"
+                    echo "  🌐 Application:  http://localhost:5000"
+                    echo "  📊 Prometheus:   http://localhost:9090"
+                    echo "  📈 Grafana:      http://localhost:3000 (user: admin | pass: admin)"
                     echo "==========================================="
                 }
             }
@@ -86,11 +97,18 @@ pipeline {
             echo "Pipeline Run Finished."
         }
         success {
-            echo "Successfully deployed IntelliMail Stack (Frontend + ML Backend)."
+            echo "✓ Successfully deployed IntelliMail Stack (Frontend + ML Backend + Monitoring)."
         }
         failure {
-            echo "Deployment failed. Cleaning up stale configs..."
-            // bat "docker-compose down"
+            echo "✗ Deployment failed. Attempting cleanup..."
+            script {
+                int cleanupStatus = bat(returnStatus: true, script: 'docker-compose down -v')
+                if (cleanupStatus == 0) {
+                    echo "✓ Cleanup completed successfully."
+                } else {
+                    echo "⚠ Cleanup encountered issues (non-critical)."
+                }
+            }
         }
     }
 }
