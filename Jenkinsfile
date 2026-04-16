@@ -1,185 +1,107 @@
 pipeline {
-    agent any
+agent any
 
-    environment {
-        COMPOSE_PROJECT_NAME = "intellmail-prod"
-        DOCKER_CONTENT_TRUST = "0"
-    }
+```
+environment {
+    COMPOSE_PROJECT_NAME = "intellmail-prod"
+    DOCKER_CONTENT_TRUST = "0"
+}
 
-    stages {
-        stage('System Validation') {
-            steps {
-                script {
-                    echo "╔════════════════════════════════════════════╗"
-                    echo "║  IntelliMail Deployment - System Validation║"
-                    echo "╚════════════════════════════════════════════╝"
-                    
-                    // Validate Docker Installation
-                    echo "Checking Docker installation..."
-                    int dockerStatus = bat(returnStatus: true, script: 'docker --version')
-                    if (dockerStatus != 0) {
-                        error("✗ Docker not found. Install Docker and add to PATH.")
-                    }
-                    echo "✓ Docker validated"
-                    
-                    // Validate Docker Compose Installation
-                    echo "Checking Docker Compose installation..."
-                    int composeStatus = bat(returnStatus: true, script: 'docker-compose --version')
-                    if (composeStatus != 0) {
-                        error("✗ Docker Compose not found. Install docker-compose and add to PATH.")
-                    }
-                    echo "✓ Docker Compose validated"
-                    
-                    // Check Docker Daemon
-                    echo "Verifying Docker daemon connectivity..."
-                    int daemonStatus = bat(returnStatus: true, script: 'docker ps > nul 2>&1')
-                    if (daemonStatus != 0) {
-                        error("✗ Docker daemon not running. Start Docker Desktop and retry.")
-                    }
-                    echo "✓ Docker daemon is responsive"
-                }
-            }
-        }
+stages {
 
-        stage('Pre-cache Docker Images') {
-            steps {
-                script {
-                    echo "╔════════════════════════════════════════════╗"
-                    echo "║    Pre-caching Docker Images Locally       ║"
-                    echo "╚════════════════════════════════════════════╝"
-                    
-                    echo "Pulling Prometheus image..."
-                    retry(3) {
-                        bat "docker pull prom/prometheus:latest"
-                    }
-                    echo "✓ Prometheus cached"
-                    
-                    echo "Pulling Grafana image..."
-                    retry(3) {
-                        bat "docker pull grafana/grafana:latest"
-                    }
-                    echo "✓ Grafana cached"
-                    
-                    echo "Verifying locally cached images..."
-                    bat "docker images --filter reference=prom/prometheus --filter reference=grafana/grafana"
-                }
-            }
-        }
-
-        stage('Cleanup Old Containers') {
-            steps {
-                script {
-                    echo "╔════════════════════════════════════════════╗"
-                    echo "║   Cleaning up Previous Deployments         ║"
-                    echo "╚════════════════════════════════════════════╝"
-                    
-                    echo "Stopping and removing old containers..."
-                    int cleanupStatus = bat(returnStatus: true, script: 'docker-compose down -v')
-                    if (cleanupStatus == 0) {
-                        echo "✓ Previous deployment cleaned"
-                    } else {
-                        echo "⚠ No previous deployment found (first run)"
-                    }
-                }
-            }
-        }
-
-        stage('Deploy Services') {
-            steps {
-                withCredentials([file(credentialsId: 'env-file', variable: 'ENV_PATH')]) {
-                    script {
-                        echo "╔════════════════════════════════════════════╗"
-                        echo "║   Deploying IntelliMail Stack              ║"
-                        echo "║   - IntelliMail (App + API)                ║"
-                        echo "║   - Prometheus (Metrics)                   ║"
-                        echo "║   - Grafana (Dashboards)                   ║"
-                        echo "╚════════════════════════════════════════════╝"
-                        
-                        echo "Loading environment configuration..."
-                        bat "copy /Y %ENV_PATH% .env"
-                        echo "✓ Configuration loaded"
-                        
-                        echo "Starting services with Docker Compose..."
-                        retry(3) {
-                            bat "docker-compose up -d --build"
-                        }
-                        
-                        echo "Waiting for service initialization (45 seconds)..."
-                        sleep(time: 45, unit: 'SECONDS')
-                    }
-                }
-            }
-        }
-
-        stage('Verify Services') {
-            steps {
-                script {
-                    echo "╔════════════════════════════════════════════╗"
-                    echo "║   Verifying Services Status                ║"
-                    echo "╚════════════════════════════════════════════╝"
-                    
-                    echo "Checking running containers..."
-                    bat "docker-compose ps"
-                    
-                    echo ""
-                    echo "Services are starting up (no health checks)..."
-                    echo "Allow 30-60 seconds for full initialization."
-                }
-            }
-        }
-
-        stage('Deployment Summary') {
-            steps {
-                script {
-                    echo ""
-                    echo "╔════════════════════════════════════════════╗"
-                    echo "║  IntelliMail Stack - Deployment Complete   ║"
-                    echo "╠════════════════════════════════════════════╣"
-                    echo "║ 🌐 Application                             ║"
-                    echo "║    URL: http://localhost:5000              ║"
-                    echo "║    Status: Frontend + Backend              ║"
-                    echo "║                                            ║"
-                    echo "║ 📊 Prometheus (Metrics)                    ║"
-                    echo "║    URL: http://localhost:9090              ║"
-                    echo "║    Status: Metrics Collection Active       ║"
-                    echo "║                                            ║"
-                    echo "║ 📈 Grafana (Dashboards)                    ║"
-                    echo "║    URL: http://localhost:3000              ║"
-                    echo "║    User: admin                             ║"
-                    echo "║    Pass: admin                             ║"
-                    echo "║    Status: Auto-provisioned Dashboards     ║"
-                    echo "║                                            ║"
-                    echo "║ ✓ All services deployed successfully       ║"
-                    echo "╚════════════════════════════════════════════╝"
-                    echo ""
-                    echo "Next Steps:"
-                    echo "  1. Access Grafana at http://localhost:3000"
-                    echo "  2. Login with admin/admin"
-                    echo "  3. Navigate to Dashboards → Manage"
-                    echo "  4. Select 'IntelliMail Monitoring' dashboard"
-                    echo ""
-                }
-            }
-        }
-    }
-
-    post {
-        always {
-            echo "Pipeline execution completed."
-        }
-        success {
-            echo "✓ Deployment successful!"
-        }
-        failure {
-            echo "✗ Deployment failed. Attempting cleanup..."
+    stage('System Validation') {
+        steps {
             script {
-                int cleanupStatus = bat(returnStatus: true, script: 'docker-compose down -v')
-                if (cleanupStatus == 0) {
-                    echo "✓ Cleanup completed"
-                } else {
-                    echo "⚠ Cleanup had issues (check logs)"
+                echo "Checking Docker..."
+                bat 'docker --version'
+
+                echo "Checking Docker Compose..."
+                bat 'docker-compose --version'
+
+                echo "Checking Docker Daemon..."
+                bat 'docker ps > nul 2>&1'
+            }
+        }
+    }
+
+    stage('Pre-cache Images') {
+        steps {
+            script {
+                echo "Pulling required images..."
+                bat 'docker pull prom/prometheus:latest'
+                bat 'docker pull grafana/grafana:latest'
+            }
+        }
+    }
+
+    stage('Cleanup') {
+        steps {
+            script {
+                echo "Cleaning old deployment..."
+
+                bat 'docker rm -f intellmail-app >nul 2>&1 || exit 0'
+                bat 'docker-compose down -v --remove-orphans >nul 2>&1 || exit 0'
+                bat 'docker container prune -f'
+                bat 'docker network prune -f'
+
+                echo "Cleanup completed"
+            }
+        }
+    }
+
+    stage('Deploy') {
+        steps {
+            withCredentials([file(credentialsId: 'env-file', variable: 'ENV_PATH')]) {
+                script {
+                    echo "Deploying application..."
+
+                    bat 'copy /Y %ENV_PATH% .env'
+
+                    bat '''
+                    docker rm -f intellmail-app >nul 2>&1
+                    docker-compose up -d --build --remove-orphans
+                    '''
+
+                    echo "Waiting for services..."
+                    sleep(time: 30, unit: 'SECONDS')
                 }
             }
         }
     }
+
+    stage('Verify') {
+        steps {
+            script {
+                echo "Checking running containers..."
+                bat 'docker-compose ps'
+            }
+        }
+    }
+
+    stage('Summary') {
+        steps {
+            script {
+                echo "Deployment Successful!"
+                echo "App: http://localhost:5000"
+                echo "Prometheus: http://localhost:9090"
+                echo "Grafana: http://localhost:3000"
+            }
+        }
+    }
+}
+
+post {
+    always {
+        echo "Pipeline finished."
+    }
+    success {
+        echo "Deployment successful!"
+    }
+    failure {
+        echo "Deployment failed. Cleaning..."
+        bat 'docker-compose down -v'
+    }
+}
+```
+
 }
