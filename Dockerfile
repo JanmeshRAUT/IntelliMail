@@ -3,6 +3,16 @@ FROM node:20-slim AS builder
 
 WORKDIR /app
 
+# Add build arguments for Vite environment variables
+ARG VITE_GOOGLE_CLIENT_ID
+ARG VITE_ML_SERVICE_URL
+ARG VITE_LSTM_SERVICE_URL
+
+# Set environment variables for the build process
+ENV VITE_GOOGLE_CLIENT_ID=$VITE_GOOGLE_CLIENT_ID
+ENV VITE_ML_SERVICE_URL=$VITE_ML_SERVICE_URL
+ENV VITE_LSTM_SERVICE_URL=$VITE_LSTM_SERVICE_URL
+
 # Copy package manifest files
 COPY package*.json ./
 

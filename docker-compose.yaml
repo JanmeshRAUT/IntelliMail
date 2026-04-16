@@ -3,6 +3,10 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        - VITE_GOOGLE_CLIENT_ID=${VITE_GOOGLE_CLIENT_ID}
+        - VITE_ML_SERVICE_URL=${VITE_ML_SERVICE_URL}
+        - VITE_LSTM_SERVICE_URL=${VITE_LSTM_SERVICE_URL}
     container_name: intellmail-app
     hostname: intellmail
     ports:
