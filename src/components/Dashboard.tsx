@@ -172,9 +172,31 @@ export default function Dashboard() {
 
   const filteredThreads = threads.filter(t => {
     const matchesSearch = t.subject.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesFilter = filter === 'All' || t.analysis?.category === filter;
+    const matchesFilter = filter === 'All' || t.analysis?.priority === filter;
     return matchesSearch && matchesFilter;
+  }).sort((a, b) => {
+    // Sort by threat level first (High > Medium > Low)
+    const priorityOrder = { 'High': 0, 'Medium': 1, 'Low': 2 };
+    const aPriority = priorityOrder[a.analysis?.priority as keyof typeof priorityOrder] ?? 3;
+    const bPriority = priorityOrder[b.analysis?.priority as keyof typeof priorityOrder] ?? 3;
+    
+    if (aPriority !== bPriority) return aPriority - bPriority;
+    
+    // Then by threat count (more threats first)
+    const aThreats = a.analysis?.threats?.length ?? 0;
+    const bThreats = b.analysis?.threats?.length ?? 0;
+    return bThreats - aThreats;
   });
+
+  // Calculate threat statistics
+  const threatStats = {
+    total: threads.length,
+    withThreats: threads.filter(t => t.analysis?.threats && t.analysis.threats.length > 0).length,
+    critical: threads.filter(t => t.analysis?.priority === 'High' && t.analysis?.threats && t.analysis.threats.length > 0).length,
+    high: threads.filter(t => t.analysis?.priority === 'High').length,
+    medium: threads.filter(t => t.analysis?.priority === 'Medium').length,
+    low: threads.filter(t => t.analysis?.priority === 'Low' || !t.analysis?.priority).length,
+  };
 
   return (
     <div className="flex flex-col h-screen bg-[var(--background)] text-[var(--foreground)] transition-colors duration-300">
@@ -182,10 +204,11 @@ export default function Dashboard() {
       <div className="border-b border-[var(--border)] bg-[var(--card)] shadow-sm sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-8 py-6">
           <div className="flex flex-col gap-6">
+            {/* Title Section */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
               <div>
-                <h1 className="text-4xl font-extrabold tracking-tight">Inbox & Security</h1>
-                <p className="text-[var(--muted-foreground)] font-medium">AI-powered conversation intelligence with security analysis</p>
+                <h1 className="text-4xl font-extrabold tracking-tight">Gmail Security Monitor</h1>
+                <p className="text-[var(--muted-foreground)] font-medium">Real-time threat detection & email security analysis</p>
               </div>
               <div className="flex items-center gap-3">
                 <button 
@@ -194,31 +217,71 @@ export default function Dashboard() {
                   className="flex items-center gap-2.5 px-6 py-3 bg-primary-600 text-white rounded-xl font-bold hover:bg-primary-700 shadow-lg shadow-primary-500/20 transition-all disabled:opacity-50"
                 >
                   <RefreshCw className={cn("w-4 h-4", refreshing && "animate-spin")} />
-                  {refreshing ? 'Processing...' : 'Sync Gmail'}
+                  {refreshing ? 'Scanning...' : 'Scan Gmail'}
                 </button>
               </div>
             </div>
 
+            {/* Threat Statistics */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className={cn(
+                "px-4 py-3 rounded-xl border text-center",
+                threatStats.critical > 0 
+                  ? "bg-red-50 dark:bg-red-500/5 border-red-500/30 dark:border-red-500/30"
+                  : "bg-[var(--secondary)] border-[var(--border)]"
+              )}>
+                <p className={cn(
+                  "text-2xl font-black",
+                  threatStats.critical > 0 ? "text-red-600 dark:text-red-400" : "text-[var(--muted-foreground)]"
+                )}>{threatStats.critical}</p>
+                <p className="text-[10px] font-bold text-[var(--muted-foreground)] uppercase tracking-widest">Critical</p>
+              </div>
+              <div className={cn(
+                "px-4 py-3 rounded-xl border text-center",
+                threatStats.high > threatStats.critical
+                  ? "bg-orange-50 dark:bg-orange-500/5 border-orange-500/30 dark:border-orange-500/30"
+                  : "bg-[var(--secondary)] border-[var(--border)]"
+              )}>
+                <p className={cn(
+                  "text-2xl font-black",
+                  threatStats.high > threatStats.critical ? "text-orange-600 dark:text-orange-400" : "text-[var(--muted-foreground)]"
+                )}>{threatStats.high - threatStats.critical}</p>
+                <p className="text-[10px] font-bold text-[var(--muted-foreground)] uppercase tracking-widest">High</p>
+              </div>
+              <div className="px-4 py-3 rounded-xl border bg-[var(--secondary)] border-[var(--border)] text-center">
+                <p className="text-2xl font-black text-[var(--muted-foreground)]">{threatStats.medium}</p>
+                <p className="text-[10px] font-bold text-[var(--muted-foreground)] uppercase tracking-widest">Medium</p>
+              </div>
+              <div className="px-4 py-3 rounded-xl border bg-[var(--secondary)] border-[var(--border)] text-center">
+                <p className="text-2xl font-black text-[var(--muted-foreground)]">{threatStats.withThreats}</p>
+                <p className="text-[10px] font-bold text-[var(--muted-foreground)] uppercase tracking-widest">With Threats</p>
+              </div>
+            </div>
+
+            {/* Search & Filters */}
             <div className="flex flex-col md:flex-row gap-6">
               <div className="relative flex-1 group">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[var(--muted-foreground)] transition-colors group-focus-within:text-primary-500" />
                 <input 
                   type="text" 
-                  placeholder="Search through analyzed threads..."
+                  placeholder="Search threats by email subject or sender..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="w-full pl-12 pr-4 py-3.5 bg-[var(--background)] text-[var(--foreground)] border border-[var(--border)] rounded-2xl focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500 outline-none transition-all shadow-sm font-medium placeholder:text-[var(--muted-foreground)]/50"
                 />
               </div>
               <div className="flex gap-2 overflow-x-auto pb-2 md:pb-0 scrollbar-hide">
-                {['All', 'Work', 'Personal', 'Promotions', 'Spam'].map((f) => (
+                {['All', 'High', 'Medium', 'Low'].map((f) => (
                   <button
                     key={f}
-                    onClick={() => setFilter(f)}
+                    onClick={() => setFilter(f === 'All' ? 'All' : f)}
                     className={cn(
                       "px-5 py-2.5 rounded-2xl text-sm font-bold transition-all whitespace-nowrap border-2",
                       filter === f 
-                      ? "bg-primary-600 text-white border-primary-600 shadow-lg shadow-primary-500/20" 
+                      ? f === 'All' ? "bg-primary-600 text-white border-primary-600 shadow-lg shadow-primary-500/20" :
+                        f === 'High' ? "bg-red-600 text-white border-red-600 shadow-lg shadow-red-500/20" :
+                        f === 'Medium' ? "bg-amber-600 text-white border-amber-600 shadow-lg shadow-amber-500/20" :
+                        "bg-green-600 text-white border-green-600 shadow-lg shadow-green-500/20"
                       : "bg-[var(--background)] text-[var(--muted-foreground)] border-[var(--border)] hover:border-primary-300"
                     )}
                   >
@@ -266,93 +329,93 @@ export default function Dashboard() {
                       <Link 
                         to={`/thread/${thread.id}`}
                         className={cn(
-                          "block p-8 bg-[var(--card)] border rounded-3xl hover:shadow-xl hover:-translate-y-1 transition-all group relative overflow-hidden",
+                          "block p-8 bg-[var(--card)] border-2 rounded-3xl hover:shadow-2xl hover:-translate-y-1 transition-all group relative overflow-hidden",
                           hasThreats
-                          ? "border-red-500/30 bg-red-50/10 dark:bg-red-500/5" 
+                          ? "border-red-500/50 bg-red-50/20 dark:bg-red-500/10" 
                           : thread.analysis?.priority === 'High'
-                          ? "border-orange-500/30 bg-orange-50/10 dark:bg-orange-500/5"
+                          ? "border-orange-500/50 bg-orange-50/20 dark:bg-orange-500/10"
+                          : thread.analysis?.priority === 'Medium'
+                          ? "border-amber-500/30 bg-amber-50/10 dark:bg-amber-500/5"
                           : "border-[var(--border)]"
                         )}
                       >
                         {hasThreats && (
-                          <div className="absolute top-0 left-0 w-1.5 h-full bg-red-500 shadow-[0_0_15px_rgba(239,68,68,0.5)]" />
+                          <div className="absolute top-0 left-0 w-2 h-full bg-red-500 shadow-[0_0_20px_rgba(239,68,68,0.8)]" />
                         )}
                         {thread.analysis?.priority === 'High' && !hasThreats && (
-                          <div className="absolute top-0 left-0 w-1.5 h-full bg-orange-500 shadow-[0_0_15px_rgba(249,115,22,0.5)]" />
+                          <div className="absolute top-0 left-0 w-2 h-full bg-orange-500 shadow-[0_0_20px_rgba(249,115,22,0.6)]" />
                         )}
                         
                         <div className="flex flex-col gap-6">
-                          {/* Header Section */}
-                          <div className="flex flex-col md:flex-row md:items-start justify-between gap-6">
+                          {/* Threat Badge & Subject */}
+                          <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
                             <div className="space-y-3 flex-1 min-w-0">
                               <div className="flex items-center gap-3 flex-wrap">
                                 <h3 className="font-bold text-xl text-[var(--foreground)] group-hover:text-primary-600 transition-colors truncate">
                                   {thread.subject}
                                 </h3>
-                                {hasThreats && (
-                                  <div className="flex items-center gap-2 px-3 py-1.5 bg-red-500/20 rounded-lg border border-red-500/30">
-                                    <ShieldAlert className="w-4 h-4 text-red-500 shrink-0" />
-                                    <span className="text-xs font-bold text-red-600 dark:text-red-400">{threatCount} Threats</span>
-                                  </div>
-                                )}
                               </div>
                               <p className="text-[var(--muted-foreground)] text-sm leading-relaxed font-medium line-clamp-2">
-                                {thread.analysis?.summary || "No analysis available yet. Tap Sync Gmail to process."}
-                              </p>
+                                {thread.analysis?.summary || "No analysis available yet. Tap Scan Gmail to process."}</p>
                             </div>
                             
-                            <div className="flex flex-row md:flex-col items-center md:items-end justify-between gap-3 shrink-0">
-                              <span className="text-[11px] text-[var(--muted-foreground)] font-bold tracking-wider uppercase">
-                                {new Date(thread.lastMessageTimestamp).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                            <div className="shrink-0">
+                              <span className={cn(
+                                "px-4 py-2 rounded-lg text-[11px] font-black uppercase tracking-widest whitespace-nowrap",
+                                hasThreats
+                                  ? "bg-red-100 dark:bg-red-500/20 text-red-700 dark:text-red-300 border border-red-300 dark:border-red-500/40"
+                                  : thread.analysis?.priority === 'High'
+                                  ? "bg-orange-100 dark:bg-orange-500/20 text-orange-700 dark:text-orange-300 border border-orange-300 dark:border-orange-500/40"
+                                  : thread.analysis?.priority === 'Medium'
+                                  ? "bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-300 dark:border-amber-500/40"
+                                  : "bg-green-100 dark:bg-green-500/20 text-green-700 dark:text-green-300 border border-green-300 dark:border-green-500/40"
+                              )}>
+                                {hasThreats ? '⚠️ THREAT' : thread.analysis?.priority === 'High' ? '🔴 HIGH' : thread.analysis?.priority === 'Medium' ? '🟠 MEDIUM' : '✓ SAFE'}
                               </span>
                             </div>
                           </div>
 
-                          {/* Threat Details Section */}
+                          {/* Threat Details */}
                           {hasThreats && thread.analysis?.threats && (
                             <div className="pt-4 border-t border-[var(--border)] space-y-3">
-                              <div className="text-xs font-bold text-red-600 dark:text-red-400 uppercase tracking-wider">Security Alerts</div>
+                              <div className="text-xs font-bold text-red-700 dark:text-red-300 uppercase tracking-wider flex items-center gap-2">
+                                <ShieldAlert className="w-4 h-4" />
+                                Security Threats Detected ({threatCount})
+                              </div>
                               <div className="flex flex-wrap gap-2">
-                                {thread.analysis.threats.map((threat, idx) => (
+                                {thread.analysis.threats.slice(0, 3).map((threat, idx) => (
                                   <span 
                                     key={idx}
-                                    className="px-2.5 py-1 text-xs font-semibold bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20 rounded-lg"
+                                    className="px-3 py-1.5 text-xs font-semibold bg-red-500/20 text-red-700 dark:text-red-300 border border-red-500/40 dark:border-red-500/50 rounded-lg"
                                   >
                                     {threat}
                                   </span>
                                 ))}
+                                {thread.analysis.threats.length > 3 && (
+                                  <span className="px-3 py-1.5 text-xs font-semibold bg-red-500/20 text-red-700 dark:text-red-300 border border-red-500/40 dark:border-red-500/50 rounded-lg">
+                                    +{thread.analysis.threats.length - 3} more
+                                  </span>
+                                )}
                               </div>
                             </div>
                           )}
 
-                          {/* Tags Section */}
-                          <div className="pt-4 border-t border-[var(--border)] flex flex-row md:flex-row items-start gap-3 flex-wrap">
+                          {/* Metadata */}
+                          <div className="pt-4 border-t border-[var(--border)] flex flex-row md:flex-row items-center justify-between gap-3">
+                            <span className="text-[11px] text-[var(--muted-foreground)] font-bold tracking-wider uppercase">
+                              {new Date(thread.lastMessageTimestamp).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                            </span>
                             {thread.analysis && (
-                              <>
-                                {/* Category Badge */}
-                                <span className={cn(
-                                  "px-3 py-1.5 rounded-xl text-[10px] font-extrabold uppercase tracking-widest border",
-                                  thread.analysis.category === 'Work' ? "bg-blue-600 text-white border-blue-700 dark:bg-blue-500/20 dark:text-blue-300 dark:border-blue-500/30" :
-                                  thread.analysis.category === 'Personal' ? "bg-emerald-600 text-white border-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300 dark:border-emerald-500/30" :
-                                  thread.analysis.category === 'Spam' ? "bg-red-600 text-white border-red-700 dark:bg-red-500/20 dark:text-red-300 dark:border-red-500/30" :
-                                  thread.analysis.category === 'Promotions' ? "bg-purple-600 text-white border-purple-700 dark:bg-purple-500/20 dark:text-purple-300 dark:border-purple-500/30" :
-                                  "bg-[var(--secondary)] text-[var(--muted-foreground)] border-[var(--border)]"
-                                )}>
-                                  {thread.analysis.category}
-                                </span>
-
-                                {/* Risk Level Badge (showing actual security risk) */}
-                                {thread.analysis.priority && (
-                                  <span className={cn(
-                                    "px-3 py-1.5 rounded-xl text-[10px] font-extrabold uppercase tracking-widest border flex items-center gap-1.5",
-                                    thread.analysis.priority === 'High' ? "bg-red-600 text-white border-red-700 dark:bg-red-500/20 dark:text-red-300 dark:border-red-500/30" :
-                                    thread.analysis.priority === 'Medium' ? "bg-amber-600 text-white border-amber-700 dark:bg-amber-500/20 dark:text-amber-300 dark:border-amber-500/30" :
-                                    "bg-[var(--secondary)] text-[var(--muted-foreground)] border-[var(--border)]"
-                                  )}>
-                                    <span>Risk: {thread.analysis.priority}</span>
-                                  </span>
-                                )}
-                              </>
+                              <span className={cn(
+                                "px-3 py-1.5 rounded-xl text-[10px] font-extrabold uppercase tracking-widest border",
+                                thread.analysis.category === 'Work' ? "bg-blue-600 text-white border-blue-700 dark:bg-blue-500/20 dark:text-blue-300 dark:border-blue-500/30" :
+                                thread.analysis.category === 'Personal' ? "bg-emerald-600 text-white border-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300 dark:border-emerald-500/30" :
+                                thread.analysis.category === 'Spam' ? "bg-red-600 text-white border-red-700 dark:bg-red-500/20 dark:text-red-300 dark:border-red-500/30" :
+                                thread.analysis.category === 'Promotions' ? "bg-purple-600 text-white border-purple-700 dark:bg-purple-500/20 dark:text-purple-300 dark:border-purple-500/30" :
+                                "bg-[var(--secondary)] text-[var(--muted-foreground)] border-[var(--border)]"
+                              )}>
+                                {thread.analysis.category}
+                              </span>
                             )}
                           </div>
                         </div>
