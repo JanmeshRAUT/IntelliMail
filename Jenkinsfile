@@ -76,7 +76,7 @@ pipeline {
         }
 
         stage('Non-Main Branch Info') {
-            when {
+            when { 
                 not {
                     branch 'main'
                 }
