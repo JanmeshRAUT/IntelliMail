@@ -46,6 +46,47 @@ async function startServer() {
     return `${sender} started "${subject}". Latest context: ${snippet}`;
   }
 
+  // Hugging Face API integration for threat detection
+  async function analyzeWithHuggingFace(emails: Array<{ subject?: string; body?: string; snippet?: string }>) {
+    try {
+      const text = emails
+        .map((email) => `${email.subject || ''} ${email.body || ''}`)
+        .join('\n');
+
+      const hfResponse = await fetch('https://api-inference.huggingface.co/models/JerryJR1705/ThreadDetection', {
+        headers: { Authorization: `Bearer ${process.env.HUGGINGFACE_API_KEY}` },
+        method: 'POST',
+        body: JSON.stringify({ inputs: text }),
+      });
+
+      if (!hfResponse.ok) {
+        console.warn('Hugging Face API error, falling back to local analysis');
+        return null;
+      }
+
+      const hfResult = await hfResponse.json();
+      return hfResult;
+    } catch (error) {
+      console.warn('Hugging Face analysis failed:', error);
+      return null;
+    }
+  }
+
+  // Local fallback threat detection (used when HF is unavailable)
+  function localThreatDetection(emails: Array<{ subject?: string; body?: string; snippet?: string }>) {
+    const allText = emails
+      .map((email: { subject?: string; body?: string; snippet?: string }) => `${email.subject || ''} ${email.body || ''} ${email.snippet || ''}`)
+      .join(' ')
+      .toLowerCase();
+
+    const threats = threatKeywords.filter((word) => allText.includes(word));
+    const category = classifyCategory(emails[0]?.subject || '', allText);
+    const sentiment = classifySentiment(allText);
+    const priority = threats.length > 0 ? 'High' : category === 'Work' ? 'Medium' : 'Low';
+
+    return { threats, category, sentiment, priority };
+  }
+
   // API Routes
   app.post('/api/analyze', async (req, res) => {
     const { emails } = req.body;
@@ -54,24 +95,43 @@ async function startServer() {
     }
 
     try {
-      const allText = emails
-        .map((email: { subject?: string; body?: string; snippet?: string }) => `${email.subject || ''} ${email.body || ''} ${email.snippet || ''}`)
-        .join(' ')
-        .toLowerCase();
+      // Try Hugging Face analysis first
+      const hfAnalysis = await analyzeWithHuggingFace(emails);
+      
+      let analysis;
+      if (hfAnalysis) {
+        // Use Hugging Face results
+        console.log('Using Hugging Face analysis');
+        const allText = emails
+          .map((email: { subject?: string; body?: string; snippet?: string }) => `${email.subject || ''} ${email.body || ''}`)
+          .join(' ')
+          .toLowerCase();
+        
+        // Extract threat information from HF response
+        const threats = hfAnalysis[0]?.label === 'phishing' ? ['Phishing detected by ML model'] : 
+                        hfAnalysis[0]?.label === 'spam' ? ['Spam detected by ML model'] :
+                        threatKeywords.filter((word) => allText.includes(word));
+        
+        analysis = {
+          category: classifyCategory(emails[0]?.subject || '', allText),
+          sentiment: classifySentiment(allText),
+          priority: threats.length > 0 ? 'High' : 'Medium',
+          threats,
+          summary: summarizeThread(emails),
+          source: 'huggingface',
+        };
+      } else {
+        // Fallback to local analysis
+        console.log('Using local analysis (Hugging Face unavailable)');
+        const localAnalysis = localThreatDetection(emails);
+        analysis = {
+          ...localAnalysis,
+          summary: summarizeThread(emails),
+          source: 'local',
+        };
+      }
 
-      const threats = threatKeywords.filter((word) => allText.includes(word));
-      const category = classifyCategory(emails[0]?.subject || '', allText);
-      const sentiment = classifySentiment(allText);
-      const priority = threats.length > 0 ? 'High' : category === 'Work' ? 'Medium' : 'Low';
-      const summary = summarizeThread(emails);
-
-      res.json({
-        category,
-        sentiment,
-        priority,
-        threats,
-        summary,
-      });
+      res.json(analysis);
     } catch (error) {
       console.error('Analysis error:', error);
       res.status(500).json({ error: 'Thread analysis failed' });
