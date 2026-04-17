@@ -9,6 +9,8 @@ export default function ThreadDetail() {
   const [thread, setThread] = useState<Thread | null>(null);
   const [emails, setEmails] = useState<Email[]>([]);
   const [loading, setLoading] = useState(true);
+  const [analyzing, setAnalyzing] = useState(false);
+  const [analysisProgress, setAnalysisProgress] = useState(0);
 
   useEffect(() => {
     const hydrate = () => {
@@ -25,12 +27,34 @@ export default function ThreadDetail() {
       setThread(storedThread);
       setEmails(storedEmails);
       setLoading(false);
+      
+      // Simulate analysis on load
+      if (storedEmails.length > 0) {
+        simulateAnalysis(storedEmails.length);
+      }
     };
 
     hydrate();
     window.addEventListener('intellimail:data-updated', hydrate);
     return () => window.removeEventListener('intellimail:data-updated', hydrate);
   }, [id]);
+
+  // Simulate analysis progress
+  const simulateAnalysis = (emailCount: number) => {
+    setAnalyzing(true);
+    setAnalysisProgress(0);
+    
+    const interval = setInterval(() => {
+      setAnalysisProgress(prev => {
+        if (prev >= 100) {
+          clearInterval(interval);
+          setAnalyzing(false);
+          return 100;
+        }
+        return prev + Math.random() * 30;
+      });
+    }, 300);
+  };
 
   if (loading) return (
     <div className="p-8 max-w-5xl mx-auto space-y-8 animate-pulse">
@@ -64,6 +88,50 @@ export default function ThreadDetail() {
         <ArrowLeft className="w-4 h-4 transition-transform group-hover:-translate-x-1" />
         Return to Intelligence
       </Link>
+
+      {/* Analyzer Bar */}
+      {(analyzing || analysisProgress > 0) && (
+        <motion.div 
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-gradient-to-r from-primary-600 to-primary-700 rounded-2xl p-6 space-y-3 shadow-lg shadow-primary-500/20"
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="relative w-5 h-5">
+                <motion.div 
+                  animate={{ rotate: 360 }}
+                  transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                  className="absolute inset-0 border-2 border-white/30 border-t-white rounded-full"
+                />
+              </div>
+              <span className="text-white font-bold">
+                {analyzing ? 'Analyzing Content...' : 'Analysis Complete'}
+              </span>
+            </div>
+            <span className="text-white/80 text-sm font-semibold">{Math.min(Math.round(analysisProgress), 100)}%</span>
+          </div>
+          
+          {/* Progress Bar */}
+          <div className="w-full h-2 bg-white/20 rounded-full overflow-hidden">
+            <motion.div 
+              initial={{ width: 0 }}
+              animate={{ width: `${Math.min(analysisProgress, 100)}%` }}
+              transition={{ duration: 0.3, ease: "easeOut" }}
+              className="h-full bg-white rounded-full shadow-lg shadow-white/30"
+            />
+          </div>
+
+          {/* Status Messages */}
+          <div className="text-white/90 text-xs font-medium space-y-1">
+            {analysisProgress < 25 && <p>🔍 Scanning email headers...</p>}
+            {analysisProgress >= 25 && analysisProgress < 50 && <p>📧 Analyzing email content...</p>}
+            {analysisProgress >= 50 && analysisProgress < 75 && <p>🔗 Checking links and attachments...</p>}
+            {analysisProgress >= 75 && analysisProgress < 100 && <p>🤖 Running ML threat detection...</p>}
+            {analysisProgress >= 100 && <p>✓ Analysis complete - Report ready</p>}
+          </div>
+        </motion.div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
         <div className="lg:col-span-2 space-y-8">

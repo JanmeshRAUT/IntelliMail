@@ -27,6 +27,8 @@ export default function Dashboard() {
   const [filter, setFilter] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
   const [syncError, setSyncError] = useState<string | null>(null);
+  const [scanProgress, setScanProgress] = useState(0);
+  const [scanStatus, setScanStatus] = useState('');
   const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 
   useEffect(() => {
@@ -73,60 +75,88 @@ export default function Dashboard() {
     };
 
     const syncWithToken = async (accessToken: string) => {
-      const response = await axios.post('/api/gmail/fetch', { accessToken });
-      const emails = response.data as Email[];
+      try {
+        // Update progress
+        setScanProgress(10);
+        setScanStatus('Fetching emails from Gmail...');
+        
+        const response = await axios.post('/api/gmail/fetch', { accessToken });
+        const emails = response.data as Email[];
 
-      // Group by threadId
-      const groupedThreads: Record<string, Email[]> = {};
-      emails.forEach((email) => {
-        if (!groupedThreads[email.threadId]) groupedThreads[email.threadId] = [];
-        groupedThreads[email.threadId].push(email);
-      });
-
-      const nextThreads: Thread[] = [];
-      const nextAlerts: Alert[] = [];
-
-      for (const threadId in groupedThreads) {
-        const threadEmails = groupedThreads[threadId];
-        const latestEmail = threadEmails[0];
-
-        // Analyze thread
-        const analysisRes = await axios.post('/api/analyze', { emails: threadEmails });
-        const analysis = analysisRes.data as ThreadAnalysis;
-
-        nextThreads.push({
-          id: threadId,
-          subject: latestEmail.subject,
-          lastMessageTimestamp: latestEmail.timestamp,
-          analysis,
+        // Group by threadId
+        const groupedThreads: Record<string, Email[]> = {};
+        emails.forEach((email) => {
+          if (!groupedThreads[email.threadId]) groupedThreads[email.threadId] = [];
+          groupedThreads[email.threadId].push(email);
         });
 
-        // Create alerts from analysis output
-        if (analysis.threats && analysis.threats.length > 0) {
-          nextAlerts.push({
-            id: `${threadId}-threat-${Date.now()}`,
-            type: 'Threat',
-            message: `Security threat detected in thread: ${latestEmail.subject}`,
-            threadId,
-            timestamp: new Date().toISOString(),
-          });
-        } else if (analysis.priority === 'High') {
-          nextAlerts.push({
-            id: `${threadId}-urgent-${Date.now()}`,
-            type: 'Urgent',
-            message: `Urgent email detected: ${latestEmail.subject}`,
-            threadId,
-            timestamp: new Date().toISOString(),
-          });
-        }
-      }
+        const threadCount = Object.keys(groupedThreads).length;
+        const nextThreads: Thread[] = [];
+        const nextAlerts: Alert[] = [];
 
-      upsertEmails(emails);
-      upsertThreads(nextThreads);
-      if (nextAlerts.length > 0) {
-        pushAlerts(nextAlerts);
+        let analyzed = 0;
+        for (const threadId in groupedThreads) {
+          const threadEmails = groupedThreads[threadId];
+          const latestEmail = threadEmails[0];
+
+          // Update progress
+          setScanProgress(15 + (analyzed / threadCount) * 75);
+          setScanStatus(`Analyzing thread ${analyzed + 1} of ${threadCount}...`);
+
+          // Analyze thread
+          const analysisRes = await axios.post('/api/analyze', { emails: threadEmails });
+          const analysis = analysisRes.data as ThreadAnalysis;
+
+          nextThreads.push({
+            id: threadId,
+            subject: latestEmail.subject,
+            lastMessageTimestamp: latestEmail.timestamp,
+            analysis,
+          });
+
+          // Create alerts from analysis output
+          if (analysis.threats && analysis.threats.length > 0) {
+            nextAlerts.push({
+              id: `${threadId}-threat-${Date.now()}`,
+              type: 'Threat',
+              message: `Security threat detected in thread: ${latestEmail.subject}`,
+              threadId,
+              timestamp: new Date().toISOString(),
+            });
+          } else if (analysis.priority === 'High') {
+            nextAlerts.push({
+              id: `${threadId}-urgent-${Date.now()}`,
+              type: 'Urgent',
+              message: `Urgent email detected: ${latestEmail.subject}`,
+              threadId,
+              timestamp: new Date().toISOString(),
+            });
+          }
+          
+          analyzed++;
+        }
+
+        setScanProgress(95);
+        setScanStatus('Finalizing analysis...');
+
+        upsertEmails(emails);
+        upsertThreads(nextThreads);
+        if (nextAlerts.length > 0) {
+          pushAlerts(nextAlerts);
+        }
+
+        setScanProgress(100);
+        setScanStatus('Scan complete!');
+        setTimeout(() => {
+          setScanProgress(0);
+          setScanStatus('');
+        }, 2000);
+      } catch (error) {
+        console.error('Analysis error:', error);
+        setScanProgress(0);
+        setScanStatus('');
+        throw error;
       }
-    };
 
     try {
       let accessToken = getAccessToken();
@@ -221,6 +251,39 @@ export default function Dashboard() {
                 </button>
               </div>
             </div>
+
+            {/* Scan Progress Bar */}
+            {(refreshing || scanProgress > 0) && (
+              <motion.div 
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="bg-gradient-to-r from-primary-600 to-primary-700 rounded-xl p-4 space-y-2 shadow-lg shadow-primary-500/20"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="relative w-4 h-4">
+                      <motion.div 
+                        animate={{ rotate: 360 }}
+                        transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                        className="absolute inset-0 border-2 border-white/30 border-t-white rounded-full"
+                      />
+                    </div>
+                    <span className="text-white font-bold text-sm">{scanStatus || 'Scanning...'}</span>
+                  </div>
+                  <span className="text-white/80 text-xs font-semibold">{Math.round(scanProgress)}%</span>
+                </div>
+                
+                {/* Progress Bar */}
+                <div className="w-full h-1.5 bg-white/20 rounded-full overflow-hidden">
+                  <motion.div 
+                    initial={{ width: 0 }}
+                    animate={{ width: `${Math.min(scanProgress, 100)}%` }}
+                    transition={{ duration: 0.3, ease: "easeOut" }}
+                    className="h-full bg-white rounded-full shadow-lg shadow-white/30"
+                  />
+                </div>
+              </motion.div>
+            )}
 
             {/* Threat Statistics */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
