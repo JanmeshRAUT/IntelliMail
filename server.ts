@@ -5,6 +5,8 @@ import { fileURLToPath } from 'url';
 import { google } from 'googleapis';
 import dotenv from 'dotenv';
 import { analyzeThreadEmails, analyzeMultipleThreads } from './src/lib/securityService.js';
+import { connectDB, disconnectDB } from './src/lib/db.js';
+import * as dbService from './src/lib/dbService.js';
 import type { Thread } from './src/lib/types.js';
 
 dotenv.config();
@@ -15,6 +17,14 @@ const __dirname = path.dirname(__filename);
 async function startServer() {
   const app = express();
   const PORT = 3000;
+
+  // Connect to MongoDB
+  try {
+    await connectDB();
+  } catch (error) {
+    console.error('Failed to connect to MongoDB:', error);
+    process.exit(1);
+  }
 
   app.use(express.json({ limit: '50mb' }));
   app.use(express.urlencoded({ limit: '50mb', extended: true }));
@@ -126,8 +136,8 @@ async function startServer() {
   });
 
   // Security Analysis Endpoint - Analyze emails in a thread for threats
-  app.post('/api/security/analyze-thread', (req, res) => {
-    const { thread } = req.body;
+  app.post('/api/security/analyze-thread', async (req, res) => {
+    const { thread, userId } = req.body;
 
     // Validate input
     if (!thread || typeof thread !== 'object') {
@@ -156,6 +166,30 @@ async function startServer() {
       // Analyze the thread
       const analysis = analyzeThreadEmails(thread as Thread);
 
+      // Save to MongoDB if userId provided
+      if (userId) {
+        try {
+          await dbService.saveThreadAnalysis(userId, thread.threadId, analysis);
+          
+          // Log high-risk threats
+          if (analysis.overallRiskLevel === 'High') {
+            const firstEmail = thread.emails[0];
+            await dbService.logThreat(
+              userId,
+              thread.threadId,
+              firstEmail.id,
+              analysis.attackType || 'Unknown',
+              'High',
+              analysis.emails[0]?.explanation || '',
+              firstEmail.from
+            );
+          }
+        } catch (dbError) {
+          console.error('Database save error (non-blocking):', dbError);
+          // Continue even if DB save fails
+        }
+      }
+
       res.json({
         success: true,
         data: analysis,
@@ -168,8 +202,8 @@ async function startServer() {
   });
 
   // Batch Security Analysis Endpoint - Analyze multiple threads
-  app.post('/api/security/analyze-threads', (req, res) => {
-    const { threads } = req.body;
+  app.post('/api/security/analyze-threads', async (req, res) => {
+    const { threads, userId } = req.body;
 
     if (!Array.isArray(threads)) {
       return res.status(400).json({ error: 'Expected threads array' });
@@ -177,6 +211,17 @@ async function startServer() {
 
     try {
       const analyses = analyzeMultipleThreads(threads as Thread[]);
+
+      // Save all analyses to MongoDB if userId provided
+      if (userId) {
+        try {
+          for (const analysis of analyses) {
+            await dbService.saveThreadAnalysis(userId, analysis.threadId, analysis);
+          }
+        } catch (dbError) {
+          console.error('Batch database save error (non-blocking):', dbError);
+        }
+      }
 
       res.json({
         success: true,
@@ -192,7 +237,133 @@ async function startServer() {
     }
   });
 
-  // Vite middleware for development
+  // ============== DATABASE API ENDPOINTS ==============
+
+  // Get all analyses for a user
+  app.get('/api/analyses/:userId', async (req, res) => {
+    const { userId } = req.params;
+    const limit = req.query.limit ? parseInt(req.query.limit as string) : 50;
+
+    try {
+      const analyses = await dbService.getAllAnalyses(userId, limit);
+      res.json({
+        success: true,
+        data: analyses,
+        count: analyses.length,
+      });
+    } catch (error) {
+      console.error('Error fetching analyses:', error);
+      res.status(500).json({ error: 'Failed to fetch analyses' });
+    }
+  });
+
+  // Get specific thread analysis history
+  app.get('/api/analyses/:userId/:threadId', async (req, res) => {
+    const { userId, threadId } = req.params;
+
+    try {
+      const history = await dbService.getAnalysisHistory(userId, threadId);
+      res.json({
+        success: true,
+        data: history,
+        count: history.length,
+      });
+    } catch (error) {
+      console.error('Error fetching analysis history:', error);
+      res.status(500).json({ error: 'Failed to fetch analysis history' });
+    }
+  });
+
+  // Get analytics data for a user
+  app.get('/api/analytics/:userId', async (req, res) => {
+    const { userId } = req.params;
+
+    try {
+      const analytics = await dbService.getAnalyticsData(userId);
+      res.json({
+        success: true,
+        data: analytics,
+      });
+    } catch (error) {
+      console.error('Error fetching analytics:', error);
+      res.status(500).json({ error: 'Failed to fetch analytics' });
+    }
+  });
+
+  // Get high-risk threats for a user
+  app.get('/api/threats/high-risk/:userId', async (req, res) => {
+    const { userId } = req.params;
+
+    try {
+      const threats = await dbService.getHighRiskThreats(userId);
+      res.json({
+        success: true,
+        data: threats,
+        count: threats.length,
+      });
+    } catch (error) {
+      console.error('Error fetching high-risk threats:', error);
+      res.status(500).json({ error: 'Failed to fetch threats' });
+    }
+  });
+
+  // Get threats detected in last N hours
+  app.get('/api/threats/:userId/since/:hours', async (req, res) => {
+    const { userId } = req.params;
+    const hours = parseInt(req.params.hours as string) || 24;
+
+    try {
+      const threats = await dbService.getThreatsSince(userId, hours);
+      res.json({
+        success: true,
+        data: threats,
+        count: threats.length,
+      });
+    } catch (error) {
+      console.error('Error fetching recent threats:', error);
+      res.status(500).json({ error: 'Failed to fetch threats' });
+    }
+  });
+
+  // Add trusted sender
+  app.post('/api/trusted-senders/:userId', async (req, res) => {
+    const { userId } = req.params;
+    const { senderEmail } = req.body;
+
+    if (!senderEmail) {
+      return res.status(400).json({ error: 'senderEmail is required' });
+    }
+
+    try {
+      const user = await dbService.addTrustedSender(userId, senderEmail);
+      res.json({
+        success: true,
+        data: user?.trustedSenders || [],
+      });
+    } catch (error) {
+      console.error('Error adding trusted sender:', error);
+      res.status(500).json({ error: 'Failed to add trusted sender' });
+    }
+  });
+
+  // Get trusted senders for a user
+  app.get('/api/trusted-senders/:userId', async (req, res) => {
+    const { userId } = req.params;
+
+    try {
+      const senders = await dbService.getTrustedSenders(userId);
+      res.json({
+        success: true,
+        data: senders,
+        count: senders.length,
+      });
+    } catch (error) {
+      console.error('Error fetching trusted senders:', error);
+      res.status(500).json({ error: 'Failed to fetch trusted senders' });
+    }
+  });
+
+  // ============== VITE & STATIC FILES ==============
   if (process.env.NODE_ENV !== 'production') {
     const vite = await createViteServer({
       server: { middlewareMode: true },
@@ -207,9 +378,21 @@ async function startServer() {
     });
   }
 
-  app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Server running on http://localhost:${PORT}`);
+  const server = app.listen(PORT, '0.0.0.0', () => {
+    console.log(`✓ Server running on http://localhost:${PORT}`);
+  });
+
+  // Graceful shutdown
+  process.on('SIGINT', async () => {
+    console.log('\n✓ Shutting down gracefully...');
+    server.close(async () => {
+      await disconnectDB();
+      process.exit(0);
+    });
   });
 }
 
-startServer();
+startServer().catch(error => {
+  console.error('Failed to start server:', error);
+  process.exit(1);
+});
