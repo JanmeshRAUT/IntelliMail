@@ -5,6 +5,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { google } from 'googleapis';
 import client from 'prom-client';
+import os from 'os';
 import { analyzeThreadEmailsWithMl, analyzeMultipleThreadsWithMl } from './src/lib/securityService.js';
 import type { Thread } from './src/lib/types.js';
 
@@ -277,8 +278,23 @@ async function startServer() {
     });
   }
 
+  function getLocalIP() {
+    const interfaces = os.networkInterfaces();
+    for (const iface of Object.values(interfaces)) {
+      for (const config of iface) {
+        if (config.family === 'IPv4' && !config.internal) {
+          return config.address;
+        }
+      }
+    }
+  }
+
+  const ip = getLocalIP();
+
   app.listen(Number(PORT), '0.0.0.0', () => {
-    console.log(`Server running on http://localhost:${PORT}`);
+    console.log(`Server running on:`);
+    console.log(`Local:   http://localhost:${PORT}`);
+    console.log(`Network: http://${ip}:${PORT}`);
   });
 }
 

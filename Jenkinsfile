@@ -1,105 +1,101 @@
-
 pipeline {
     agent any
 
     environment {
-        COMPOSE_PROJECT_NAME = "intellmail-prod"
+        IMAGE_NAME = "email-detection"
         DOCKER_CONTENT_TRUST = "0"
     }
 
     stages {
 
-        stage('System Validation') {
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+
+        stage('Set Version') {
             steps {
                 script {
-                    echo "Checking Docker..."
-                    bat 'docker --version'
+                    // Version format
+                    env.VERSION = "v1.0.${env.BUILD_NUMBER}"
+                    env.IMAGE_TAG = "${env.BRANCH_NAME}-${env.BUILD_NUMBER}".toLowerCase()
 
-                    echo "Checking Docker Compose..."
-                    bat 'docker-compose --version'
-
-                    echo "Checking Docker Daemon..."
-                    bat 'docker ps > nul 2>&1'
+                    echo "Version: ${env.VERSION}"
+                    echo "Tag: ${env.IMAGE_TAG}"
                 }
             }
         }
 
-        stage('Pre-cache Images') {
+        stage('Build Docker Image') {
             steps {
                 script {
-                    echo "Pulling required images..."
-                    bat 'docker pull prom/prometheus:latest'
-                    bat 'docker pull grafana/grafana:latest'
+                    bat """
+                    docker build -t ${env.IMAGE_NAME}:${env.IMAGE_TAG} .
+                    docker tag ${env.IMAGE_NAME}:${env.IMAGE_TAG} ${env.IMAGE_NAME}:${env.VERSION}
+                    """
                 }
             }
         }
 
-        stage('Cleanup') {
+        stage('Tag Latest (Main Only)') {
+            when {
+                branch 'main'
+            }
             steps {
                 script {
-                    echo "Cleaning old deployment..."
-
-                    bat 'docker rm -f intellmail-app >nul 2>&1 || exit 0'
-                    bat 'docker-compose down -v --remove-orphans >nul 2>&1 || exit 0'
-                    bat 'docker container prune -f'
-                    bat 'docker network prune -f'
-
-                    echo "Cleanup completed"
+                    bat """
+                    docker tag ${env.IMAGE_NAME}:${env.IMAGE_TAG} ${env.IMAGE_NAME}:latest
+                    """
                 }
             }
         }
 
-        stage('Deploy') {
+        stage('Deploy (Main Only)') {
+            when {
+                branch 'main'
+            }
             steps {
-                withCredentials([file(credentialsId: 'env-file', variable: 'ENV_PATH')]) {
-                    script {
-                        echo "Deploying application..."
+                script {
+                    echo "Deploying version ${env.VERSION}..."
 
-                        bat 'copy /Y %ENV_PATH% .env'
+                    bat '''
+                    docker rm -f email-detection-container >nul 2>&1 || exit 0
+                    '''
 
-                        bat '''
-                        docker rm -f intellmail-app >nul 2>&1
-                        docker-compose up -d --build --remove-orphans
-                        '''
+                    bat """
+                    docker run -d ^
+                    --name email-detection-container ^
+                    -p 5000:5000 ^
+                    ${env.IMAGE_NAME}:${env.VERSION}
+                    """
 
-                        echo "Waiting for services..."
-                        sleep(time: 30, unit: 'SECONDS')
-                    }
+                    echo "Deployed: ${env.IMAGE_NAME}:${env.VERSION}"
                 }
             }
         }
 
-        stage('Verify') {
-            steps {
-                script {
-                    echo "Checking running containers..."
-                    bat 'docker-compose ps'
+        stage('Non-Main Branch Info') {
+            when {
+                not {
+                    branch 'main'
                 }
             }
-        }
-
-        stage('Summary') {
             steps {
-                script {
-                    echo "Deployment Successful!"
-                    echo "App: http://localhost:5000"
-                    echo "Prometheus: http://localhost:9090"
-                    echo "Grafana: http://localhost:3000"
-                }
+                echo "Branch ${env.BRANCH_NAME} built successfully. No deployment."
             }
         }
     }
 
     post {
-        always {
-            echo "Pipeline finished."
-        }
         success {
-            echo "Deployment successful!"
+            echo "Pipeline SUCCESS for ${env.BRANCH_NAME}"
         }
         failure {
-            echo "Deployment failed. Cleaning..."
-            bat 'docker-compose down -v'
+            echo "Pipeline FAILED for ${env.BRANCH_NAME}"
+        }
+        always {
+            echo "Pipeline finished for ${env.BRANCH_NAME}"
         }
     }
 }
