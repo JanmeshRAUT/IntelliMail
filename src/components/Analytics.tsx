@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { BarChart3, TrendingUp, AlertTriangle, Shield } from 'lucide-react';
+import { BarChart3, TrendingUp, AlertTriangle, AlertCircle, Shield } from 'lucide-react';
 import { motion } from 'motion/react';
 import { Thread, getThreads } from '../lib/localData';
 
@@ -163,6 +163,65 @@ export default function Analytics() {
                 </div>
               </div>
             ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Threats Breakdown */}
+      <div className="bg-[var(--card)] border border-[var(--border)] rounded-[2.5rem] p-10 space-y-8 shadow-sm">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Shield className="w-6 h-6 text-red-500" />
+            <h2 className="text-2xl font-black tracking-tight">Security Threat Analysis</h2>
+          </div>
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Threat Summary */}
+          <div className="space-y-4">
+            <div className="bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 rounded-2xl p-6 space-y-3">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-red-200 dark:bg-red-500/30 rounded-lg">
+                  <AlertTriangle className="w-4 h-4 text-red-600 dark:text-red-400" />
+                </div>
+                <span className="text-sm font-bold text-red-700 dark:text-red-300 uppercase tracking-wider">Detected Threats</span>
+              </div>
+              <p className="text-4xl font-black text-red-600 dark:text-red-400">{stats.threats}</p>
+              <p className="text-xs text-red-600/70 dark:text-red-400/70 font-medium">
+                {stats.total > 0 ? Math.round((stats.threats / stats.total) * 100) : 0}% of conversations contain threats
+              </p>
+            </div>
+
+            <div className="bg-orange-50 dark:bg-orange-500/10 border border-orange-200 dark:border-orange-500/20 rounded-2xl p-6 space-y-3">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-orange-200 dark:bg-orange-500/30 rounded-lg">
+                  <AlertCircle className="w-4 h-4 text-orange-600 dark:text-orange-400" />
+                </div>
+                <span className="text-sm font-bold text-orange-700 dark:text-orange-300 uppercase tracking-wider">High Priority</span>
+              </div>
+              <p className="text-4xl font-black text-orange-600 dark:text-orange-400">{stats.high}</p>
+              <p className="text-xs text-orange-600/70 dark:text-orange-400/70 font-medium">
+                Requires immediate attention
+              </p>
+            </div>
+          </div>
+
+          {/* Risk Categories */}
+          <div className="space-y-3">
+            <h3 className="text-sm font-bold text-[var(--muted-foreground)] uppercase tracking-widest px-1">Threat Types Detected</h3>
+            <div className="space-y-2">
+              {[
+                { name: 'Phishing Attempts', count: threads.reduce((sum, t) => sum + (t.analysis?.threats?.filter(th => th.toLowerCase().includes('verify') || th.toLowerCase().includes('confirm')).length || 0), 0), color: 'text-red-600 dark:text-red-400' },
+                { name: 'Malware/Links', count: threads.reduce((sum, t) => sum + (t.analysis?.threats?.filter(th => th.toLowerCase().includes('link') || th.toLowerCase().includes('click')).length || 0), 0), color: 'text-orange-600 dark:text-orange-400' },
+                { name: 'Social Engineering', count: threads.reduce((sum, t) => sum + (t.analysis?.threats?.filter(th => th.toLowerCase().includes('urgent') || th.toLowerCase().includes('action')).length || 0), 0), color: 'text-amber-600 dark:text-amber-400' },
+                { name: 'Domain Spoofing', count: threads.reduce((sum, t) => sum + (t.analysis?.threats?.filter(th => th.toLowerCase().includes('domain') || th.toLowerCase().includes('mismatch')).length || 0), 0), color: 'text-yellow-600 dark:text-yellow-400' },
+              ].map(threat => (
+                <div key={threat.name} className="flex items-center justify-between p-3 bg-[var(--secondary)] rounded-lg border border-[var(--border)]">
+                  <span className="text-sm font-medium text-[var(--foreground)]">{threat.name}</span>
+                  <span className={`font-bold text-lg ${threat.color}`}>{threat.count}</span>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </div>

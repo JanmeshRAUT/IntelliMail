@@ -326,9 +326,10 @@ export default function Dashboard() {
                           )}
 
                           {/* Tags Section */}
-                          <div className="pt-4 border-t border-[var(--border)] flex flex-row md:flex-row items-center gap-2 flex-wrap">
+                          <div className="pt-4 border-t border-[var(--border)] flex flex-row md:flex-row items-start gap-3 flex-wrap">
                             {thread.analysis && (
                               <>
+                                {/* Category Badge */}
                                 <span className={cn(
                                   "px-3 py-1.5 rounded-xl text-[10px] font-extrabold uppercase tracking-widest border",
                                   thread.analysis.category === 'Work' ? "bg-blue-600 text-white border-blue-700 dark:bg-blue-500/20 dark:text-blue-300 dark:border-blue-500/30" :
@@ -339,22 +340,16 @@ export default function Dashboard() {
                                 )}>
                                   {thread.analysis.category}
                                 </span>
-                                <span className={cn(
-                                  "px-3 py-1.5 rounded-xl text-[10px] font-extrabold uppercase tracking-widest border",
-                                  thread.analysis.sentiment === 'Positive' ? "bg-teal-600 text-white border-teal-700 dark:bg-teal-500/20 dark:text-teal-300 dark:border-teal-500/30" :
-                                  thread.analysis.sentiment === 'Negative' ? "bg-rose-600 text-white border-rose-700 dark:bg-rose-500/20 dark:text-rose-300 dark:border-rose-500/30" :
-                                  "bg-[var(--secondary)] text-[var(--muted-foreground)] border-[var(--border)]"
-                                )}>
-                                  {thread.analysis.sentiment}
-                                </span>
+
+                                {/* Risk Level Badge (showing actual security risk) */}
                                 {thread.analysis.priority && (
                                   <span className={cn(
-                                    "px-3 py-1.5 rounded-xl text-[10px] font-extrabold uppercase tracking-widest border",
-                                    thread.analysis.priority === 'High' ? "bg-orange-600 text-white border-orange-700 dark:bg-orange-500/20 dark:text-orange-300 dark:border-orange-500/30" :
+                                    "px-3 py-1.5 rounded-xl text-[10px] font-extrabold uppercase tracking-widest border flex items-center gap-1.5",
+                                    thread.analysis.priority === 'High' ? "bg-red-600 text-white border-red-700 dark:bg-red-500/20 dark:text-red-300 dark:border-red-500/30" :
                                     thread.analysis.priority === 'Medium' ? "bg-amber-600 text-white border-amber-700 dark:bg-amber-500/20 dark:text-amber-300 dark:border-amber-500/30" :
                                     "bg-[var(--secondary)] text-[var(--muted-foreground)] border-[var(--border)]"
                                   )}>
-                                    {thread.analysis.priority} Priority
+                                    <span>Risk: {thread.analysis.priority}</span>
                                   </span>
                                 )}
                               </>
