@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { ArrowLeft, ShieldAlert } from 'lucide-react';
 import { motion } from 'motion/react';
-import { Email, getEmails, getThreads, Thread } from '../lib/localData';
+import axios from 'axios';
+import { Email, getEmails, getThreads, Thread, ThreadAnalysis } from '../lib/localData';
 
 export default function ThreadDetail() {
   const { id } = useParams<{ id: string }>();
@@ -11,9 +12,10 @@ export default function ThreadDetail() {
   const [loading, setLoading] = useState(true);
   const [analyzing, setAnalyzing] = useState(false);
   const [analysisProgress, setAnalysisProgress] = useState(0);
+  const [analysisComplete, setAnalysisComplete] = useState(false);
 
   useEffect(() => {
-    const hydrate = () => {
+    const hydrate = async () => {
       if (!id) {
         setLoading(false);
         return;
@@ -28,9 +30,9 @@ export default function ThreadDetail() {
       setEmails(storedEmails);
       setLoading(false);
       
-      // Simulate analysis on load
+      // Perform real analysis
       if (storedEmails.length > 0) {
-        simulateAnalysis(storedEmails.length);
+        await performRealAnalysis(storedEmails, storedThread);
       }
     };
 
@@ -39,21 +41,47 @@ export default function ThreadDetail() {
     return () => window.removeEventListener('intellimail:data-updated', hydrate);
   }, [id]);
 
-  // Simulate analysis progress
-  const simulateAnalysis = (emailCount: number) => {
+  // Perform actual analysis through the API
+  const performRealAnalysis = async (emailsToAnalyze: Email[], currentThread: Thread | null) => {
     setAnalyzing(true);
     setAnalysisProgress(0);
-    
-    const interval = setInterval(() => {
-      setAnalysisProgress(prev => {
-        if (prev >= 100) {
-          clearInterval(interval);
-          setAnalyzing(false);
-          return 100;
-        }
-        return prev + Math.random() * 30;
-      });
-    }, 300);
+    setAnalysisComplete(false);
+
+    try {
+      // Simulate analysis stages with progress updates
+      setAnalysisProgress(10);
+      await new Promise(resolve => setTimeout(resolve, 300));
+
+      setAnalysisProgress(30);
+      await new Promise(resolve => setTimeout(resolve, 300));
+
+      setAnalysisProgress(50);
+      // Call actual server API for analysis
+      const response = await axios.post('/api/analyze', { emails: emailsToAnalyze });
+      const analysis = response.data as ThreadAnalysis;
+
+      setAnalysisProgress(75);
+      await new Promise(resolve => setTimeout(resolve, 200));
+
+      // Update thread with fresh analysis
+      if (currentThread) {
+        setThread({
+          ...currentThread,
+          analysis
+        });
+      }
+
+      setAnalysisProgress(100);
+      await new Promise(resolve => setTimeout(resolve, 300));
+
+      setAnalysisComplete(true);
+      setAnalyzing(false);
+    } catch (error) {
+      console.error('Analysis error:', error);
+      setAnalysisProgress(100);
+      setAnalysisComplete(true);
+      setAnalyzing(false);
+    }
   };
 
   if (loading) return (
@@ -133,6 +161,17 @@ export default function ThreadDetail() {
         </motion.div>
       )}
 
+      {!analysisComplete && analyzing ? (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
+          <div className="lg:col-span-2 space-y-8 animate-pulse">
+            <div className="h-10 w-3/4 bg-[var(--secondary)] rounded-xl" />
+            <div className="space-y-4">
+              <div className="h-64 bg-[var(--card)] border border-[var(--border)] rounded-[2rem]" />
+            </div>
+          </div>
+          <div className="h-96 bg-[var(--card)] border border-[var(--border)] rounded-[2rem] animate-pulse" />
+        </div>
+      ) : (
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
         <div className="lg:col-span-2 space-y-8">
           <header className="space-y-6">
@@ -444,11 +483,13 @@ export default function ThreadDetail() {
             </div>
           </div>
         </aside>
-      </div>
+      )}
     </div>
   );
 }
 
 function cn(...inputs: any[]) {
   return inputs.filter(Boolean).join(' ');
+}
+}
 }

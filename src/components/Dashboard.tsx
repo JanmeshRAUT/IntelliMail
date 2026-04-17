@@ -157,6 +157,7 @@ export default function Dashboard() {
         setScanStatus('');
         throw error;
       }
+    };
 
     try {
       let accessToken = getAccessToken();
