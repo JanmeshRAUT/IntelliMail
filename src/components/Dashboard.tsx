@@ -286,46 +286,72 @@ export default function Dashboard() {
       <div className="flex-1 overflow-auto bg-[var(--background)]">
         {activeTab === 'inbox' ? (
           <div className="p-4 md:p-6 max-w-7xl mx-auto space-y-6">
-            <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-              <div className="space-y-1">
-                <h1 className="text-3xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-br from-[var(--foreground)] to-[var(--foreground)]/50">
-                  IntelliFlow
-                </h1>
-                <p className="text-sm text-[var(--muted-foreground)] font-semibold tracking-tight">
-                  Mail intelligence and synthesis.
-                </p>
-              </div>
-              <div className="flex items-center gap-2">
-                <button 
-                  onClick={fetchEmails}
-                  disabled={refreshing}
-                  className="group flex items-center gap-2 px-5 py-2.5 bg-neutral-950 dark:bg-white text-white dark:text-neutral-950 rounded-xl text-xs font-bold transition-all disabled:opacity-50"
-                >
-                  <RefreshCw className={cn("w-3.5 h-3.5", refreshing && "animate-spin")} />
-                  {refreshing ? 'Synthesizing...' : 'Sync Gmail'}
-                </button>
+            <header className="relative overflow-hidden rounded-[2rem] border border-[var(--border)] bg-[var(--card)] shadow-sm">
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(14,140,233,0.10),_transparent_35%),radial-gradient(circle_at_top_right,_rgba(16,185,129,0.10),_transparent_28%),linear-gradient(135deg,rgba(2,109,198,0.04),transparent_45%)]" />
+              <div className="relative flex flex-col gap-6 p-6 md:p-8 lg:flex-row lg:items-end lg:justify-between">
+                <div className="max-w-3xl space-y-4">
+                  <div className="inline-flex items-center gap-2 rounded-full border border-primary-200 bg-primary-50 px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-primary-700 dark:border-primary-500/30 dark:bg-primary-500/10 dark:text-primary-300">
+                    <Inbox className="h-3.5 w-3.5" />
+                    Inbox command center
+                  </div>
+                  <div className="space-y-2">
+                    <h1 className="text-3xl font-black tracking-tight md:text-4xl">IntelliFlow</h1>
+                    <p className="max-w-2xl text-sm font-medium text-[var(--muted-foreground)] md:text-base">
+                      Mail intelligence and synthesis with live Gmail sync, threat analysis, and classification signals.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid gap-3 rounded-[1.75rem] border border-[var(--border)] bg-[var(--background)] p-4 shadow-sm sm:grid-cols-2 lg:w-[28rem] lg:grid-cols-1">
+                  <div className="flex items-center justify-between gap-4 rounded-2xl bg-[var(--card)] p-4">
+                    <div>
+                      <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[var(--muted-foreground)]">Sync status</p>
+                      <p className="mt-1 text-sm font-bold">{refreshing ? 'Updating inbox' : 'Ready to sync Gmail'}</p>
+                    </div>
+                    <RefreshCw className={cn('h-5 w-5 text-primary-600', refreshing && 'animate-spin')} />
+                  </div>
+                  <div className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-4">
+                    <div className="flex items-center justify-between text-xs font-semibold text-[var(--muted-foreground)]">
+                      <span>Inbox coverage</span>
+                      <span>{matchingThreads}/{totalThreads || 0}</span>
+                    </div>
+                    <div className="mt-3 h-2 overflow-hidden rounded-full bg-[var(--secondary)]">
+                      <div className="h-full rounded-full bg-gradient-to-r from-primary-500 to-cyan-500" style={{ width: `${totalThreads > 0 ? (matchingThreads / totalThreads) * 100 : 0}%` }} />
+                    </div>
+                  </div>
+                  <div className="sm:col-span-2 lg:col-span-1 flex flex-wrap gap-2">
+                    <button 
+                      onClick={fetchEmails}
+                      disabled={refreshing}
+                      className="group inline-flex items-center gap-2 rounded-full bg-neutral-950 px-5 py-2.5 text-xs font-black text-white transition-all disabled:opacity-50 dark:bg-white dark:text-neutral-950"
+                    >
+                      <RefreshCw className={cn('h-3.5 w-3.5', refreshing && 'animate-spin')} />
+                      {refreshing ? 'Synthesizing...' : 'Sync Gmail'}
+                    </button>
+                  </div>
+                </div>
               </div>
             </header>
 
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-              <div className="rounded-[2rem] border border-[var(--border)] bg-[var(--card)] p-5 shadow-sm">
-                <p className="text-xs font-bold uppercase tracking-[0.2em] text-[var(--muted-foreground)]">Threads indexed</p>
-                <p className="mt-4 text-3xl font-extrabold text-[var(--foreground)]">{totalThreads}</p>
+              <div className="rounded-[1.75rem] border border-[var(--border)] bg-[var(--card)] p-5 shadow-sm">
+                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[var(--muted-foreground)]">Threads indexed</p>
+                <p className="mt-4 text-3xl font-black tracking-tight text-[var(--foreground)]">{totalThreads}</p>
                 <p className="mt-2 text-sm text-[var(--muted-foreground)]">Total conversation threads synced to IntelliMail.</p>
               </div>
-              <div className="rounded-[2rem] border border-[var(--border)] bg-[var(--card)] p-5 shadow-sm">
-                <p className="text-xs font-bold uppercase tracking-[0.2em] text-[var(--muted-foreground)]">Threats</p>
-                <p className="mt-4 text-3xl font-extrabold text-red-600">{threatThreads}</p>
+              <div className="rounded-[1.75rem] border border-[var(--border)] bg-[var(--card)] p-5 shadow-sm">
+                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[var(--muted-foreground)]">Threats</p>
+                <p className="mt-4 text-3xl font-black tracking-tight text-red-600">{threatThreads}</p>
                 <p className="mt-2 text-sm text-[var(--muted-foreground)]">Threads with one or more security threat indicators.</p>
               </div>
-              <div className="rounded-[2rem] border border-[var(--border)] bg-[var(--card)] p-5 shadow-sm">
-                <p className="text-xs font-bold uppercase tracking-[0.2em] text-[var(--muted-foreground)]">Urgent risk</p>
-                <p className="mt-4 text-3xl font-extrabold text-amber-600">{urgentThreads}</p>
+              <div className="rounded-[1.75rem] border border-[var(--border)] bg-[var(--card)] p-5 shadow-sm">
+                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[var(--muted-foreground)]">Urgent risk</p>
+                <p className="mt-4 text-3xl font-black tracking-tight text-amber-600">{urgentThreads}</p>
                 <p className="mt-2 text-sm text-[var(--muted-foreground)]">High-priority threads that need immediate review.</p>
               </div>
-              <div className="rounded-[2rem] border border-[var(--border)] bg-[var(--card)] p-5 shadow-sm">
-                <p className="text-xs font-bold uppercase tracking-[0.2em] text-[var(--muted-foreground)]">Active filter</p>
-                <p className="mt-4 text-3xl font-extrabold text-[var(--foreground)]">{matchingThreads}</p>
+              <div className="rounded-[1.75rem] border border-[var(--border)] bg-[var(--card)] p-5 shadow-sm">
+                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[var(--muted-foreground)]">Active filter</p>
+                <p className="mt-4 text-3xl font-black tracking-tight text-[var(--foreground)]">{matchingThreads}</p>
                 <p className="mt-2 text-sm text-[var(--muted-foreground)]">Showing {currentFilterLabel} ({filter === 'All' ? 'all threads' : `${filter} threads`}).</p>
               </div>
             </div>
