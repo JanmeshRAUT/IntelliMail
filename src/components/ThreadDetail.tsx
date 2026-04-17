@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, User, ShieldAlert, Zap } from 'lucide-react';
+import { ArrowLeft, ShieldAlert } from 'lucide-react';
 import { motion } from 'motion/react';
 import { Email, getEmails, getThreads, Thread } from '../lib/localData';
 
@@ -125,54 +125,143 @@ export default function ThreadDetail() {
         <aside className="space-y-8">
           <div className="bg-[var(--card)] border border-[var(--border)] p-10 rounded-[2.5rem] space-y-10 sticky top-8 shadow-[0_20px_50px_rgba(0,0,0,0.05)] transition-all duration-300">
             <header className="space-y-2">
-              <div className="flex items-center gap-3 text-primary-600 dark:text-primary-400">
-                <div className="p-2.5 bg-primary-600/10 rounded-[1rem]">
-                  <Zap className="w-5 h-5 fill-current" />
+              <div className="flex items-center gap-3 text-red-600 dark:text-red-400">
+                <div className="p-2.5 bg-red-600/10 rounded-[1rem]">
+                  <ShieldAlert className="w-5 h-5 fill-current" />
                 </div>
-                <h2 className="font-black uppercase tracking-[0.2em] text-[10px]">Cognitive Profile</h2>
+                <h2 className="font-black uppercase tracking-[0.2em] text-[10px]">Security Report</h2>
               </div>
             </header>
 
             <div className="space-y-10">
+              {/* Overall Risk Assessment */}
               <div className="space-y-4">
                 <div className="flex items-center justify-between border-b border-[var(--border)] pb-3">
-                  <h3 className="text-[10px] font-black text-[var(--muted-foreground)] uppercase tracking-widest">Narrative Synthesis</h3>
+                  <h3 className="text-[10px] font-black text-[var(--muted-foreground)] uppercase tracking-widest">Overall Risk Level</h3>
                 </div>
-                <p className="text-sm leading-relaxed text-[var(--foreground)] font-semibold opacity-90">
-                  {thread.analysis?.summary || "Deep synthesis pending synchronization..."}
-                </p>
-              </div>
-
-              <div className="space-y-4">
-                <div className="flex items-center justify-between border-b border-[var(--border)] pb-3">
-                  <h3 className="text-[10px] font-black text-[var(--muted-foreground)] uppercase tracking-widest">Sentiment Resonance</h3>
-                </div>
-                <div className="bg-[var(--secondary)]/40 p-5 rounded-[1.5rem] border border-[var(--border)] flex items-center gap-4 transition-all hover:border-primary-500/30">
-                  <div className={cn(
-                    "w-3.5 h-3.5 rounded-full ring-4 ring-offset-2 ring-offset-[var(--card)]",
-                    thread.analysis?.sentiment === 'Positive' ? "bg-emerald-500 ring-emerald-500/20 shadow-lg shadow-emerald-500/40" :
-                    thread.analysis?.sentiment === 'Negative' ? "bg-rose-500 ring-rose-500/20 shadow-lg shadow-rose-500/40" : "bg-blue-500 ring-blue-500/20 shadow-lg shadow-blue-500/40"
-                  )} />
-                  <span className="text-sm font-black text-[var(--foreground)] tracking-tight">{thread.analysis?.sentiment || 'Neutral Stability'}</span>
-                </div>
-              </div>
-
-              {thread.analysis?.threats && thread.analysis.threats.length > 0 && (
-                <div className="p-8 bg-rose-500/5 border-2 border-rose-500/10 rounded-[2rem] space-y-5">
-                  <div className="flex items-center gap-3 text-rose-600">
-                    <ShieldAlert className="w-5 h-5" />
-                    <h3 className="text-[10px] font-black uppercase tracking-widest">Intelligence Advisory</h3>
+                <div className={cn(
+                  "p-5 rounded-[1.5rem] border-2 space-y-3",
+                  thread.analysis?.priority === 'High' 
+                    ? "bg-red-50/50 dark:bg-red-500/5 border-red-500/30 dark:border-red-500/30"
+                    : thread.analysis?.priority === 'Medium'
+                    ? "bg-amber-50/50 dark:bg-amber-500/5 border-amber-500/30 dark:border-amber-500/30"
+                    : "bg-green-50/50 dark:bg-green-500/5 border-green-500/30 dark:border-green-500/30"
+                )}>
+                  <div className="flex items-center gap-3">
+                    <div className={cn(
+                      "w-4 h-4 rounded-full",
+                      thread.analysis?.priority === 'High' ? "bg-red-500" :
+                      thread.analysis?.priority === 'Medium' ? "bg-amber-500" : "bg-green-500"
+                    )} />
+                    <span className="text-sm font-black tracking-tight">{thread.analysis?.priority || 'Low'} Risk</span>
                   </div>
-                  <ul className="space-y-4">
-                    {thread.analysis.threats.map((t, i) => (
-                      <li key={i} className="flex items-start gap-3 text-xs text-[var(--foreground)] font-bold leading-relaxed">
-                        <div className="mt-1.5 w-1.5 h-1.5 bg-rose-500 rounded-full shrink-0 shadow-lg shadow-rose-500/50" />
-                        {t}
+                  <p className="text-xs text-[var(--muted-foreground)] font-semibold opacity-80">
+                    {thread.analysis?.threats && thread.analysis.threats.length > 0 
+                      ? `${thread.analysis.threats.length} security threat${thread.analysis.threats.length !== 1 ? 's' : ''} detected`
+                      : 'No threats detected in this conversation'}
+                  </p>
+                </div>
+              </div>
+
+              {/* Threat Summary */}
+              {thread.analysis?.threats && thread.analysis.threats.length > 0 ? (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between border-b border-[var(--border)] pb-3">
+                    <h3 className="text-[10px] font-black text-[var(--muted-foreground)] uppercase tracking-widest">Detected Threats</h3>
+                    <span className="px-2 py-1 bg-red-100 dark:bg-red-500/20 text-red-700 dark:text-red-300 rounded-lg text-[9px] font-bold">
+                      {thread.analysis.threats.length}
+                    </span>
+                  </div>
+                  <ul className="space-y-3">
+                    {thread.analysis.threats.map((threat, i) => (
+                      <li key={i} className="flex items-start gap-3 p-3 bg-red-50/50 dark:bg-red-500/5 rounded-lg border border-red-200/30 dark:border-red-500/20">
+                        <div className="mt-1 w-1.5 h-1.5 bg-red-500 rounded-full shrink-0 shadow-lg shadow-red-500/50" />
+                        <span className="text-xs text-[var(--foreground)] font-bold leading-relaxed">{threat}</span>
                       </li>
                     ))}
                   </ul>
                 </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between border-b border-[var(--border)] pb-3">
+                    <h3 className="text-[10px] font-black text-[var(--muted-foreground)] uppercase tracking-widest">Status</h3>
+                  </div>
+                  <div className="p-4 bg-green-50/50 dark:bg-green-500/5 rounded-lg border border-green-200/30 dark:border-green-500/20 flex items-center gap-3">
+                    <div className="w-2 h-2 bg-green-500 rounded-full" />
+                    <span className="text-xs font-bold text-green-700 dark:text-green-300">No threats detected</span>
+                  </div>
+                </div>
               )}
+
+              {/* Email Analysis */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between border-b border-[var(--border)] pb-3">
+                  <h3 className="text-[10px] font-black text-[var(--muted-foreground)] uppercase tracking-widest">Email Scan</h3>
+                  <span className="text-xs font-bold text-[var(--muted-foreground)]">{emails.length} email{emails.length !== 1 ? 's' : ''}</span>
+                </div>
+                <div className="space-y-2">
+                  {emails.map((email, idx) => {
+                    const hasThreats = thread.analysis?.threats && thread.analysis.threats.length > 0;
+                    return (
+                      <div key={email.id} className="p-3 bg-[var(--secondary)]/30 rounded-lg border border-[var(--border)] text-xs space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="font-bold text-[var(--foreground)] truncate">{email.from.split('@')[0]}</span>
+                          <span className={cn(
+                            "px-2 py-1 rounded text-[9px] font-bold",
+                            hasThreats && idx === 0 
+                              ? "bg-red-100 dark:bg-red-500/20 text-red-700 dark:text-red-300"
+                              : "bg-green-100 dark:bg-green-500/20 text-green-700 dark:text-green-300"
+                          )}>
+                            {hasThreats && idx === 0 ? 'THREAT' : 'SAFE'}
+                          </span>
+                        </div>
+                        <p className="text-[var(--muted-foreground)] text-[10px]">
+                          {new Date(email.timestamp).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                        </p>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Recommendations */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between border-b border-[var(--border)] pb-3">
+                  <h3 className="text-[10px] font-black text-[var(--muted-foreground)] uppercase tracking-widest">Recommendations</h3>
+                </div>
+                <ul className="space-y-2 text-xs text-[var(--foreground)] font-semibold">
+                  {thread.analysis?.priority === 'High' && (
+                    <>
+                      <li className="flex items-start gap-2">
+                        <span className="text-red-500 font-bold mt-0.5">•</span>
+                        <span>Do not click any links or download attachments</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <span className="text-red-500 font-bold mt-0.5">•</span>
+                        <span>Report to your IT security team immediately</span>
+                      </li>
+                    </>
+                  )}
+                  {thread.analysis?.priority === 'Medium' && (
+                    <>
+                      <li className="flex items-start gap-2">
+                        <span className="text-amber-500 font-bold mt-0.5">•</span>
+                        <span>Verify sender identity before taking action</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <span className="text-amber-500 font-bold mt-0.5">•</span>
+                        <span>Be cautious with personal information</span>
+                      </li>
+                    </>
+                  )}
+                  {!thread.analysis?.priority || thread.analysis.priority === 'Low' && (
+                    <li className="flex items-start gap-2">
+                      <span className="text-green-500 font-bold mt-0.5">•</span>
+                      <span>This conversation appears safe to proceed</span>
+                    </li>
+                  )}
+                </ul>
+              </div>
             </div>
           </div>
         </aside>
