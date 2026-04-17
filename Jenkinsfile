@@ -31,7 +31,7 @@ pipeline {
             steps {
                 script {
                     bat """
-                    docker build -t ${env.IMAGE_NAME}:${env.IMAGE_TAG} .
+                    docker build -f docker/frontend.Dockerfile -t ${env.IMAGE_NAME}:${env.IMAGE_TAG} .
                     docker tag ${env.IMAGE_NAME}:${env.IMAGE_TAG} ${env.IMAGE_NAME}:${env.VERSION}
                     """
                 }
