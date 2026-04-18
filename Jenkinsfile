@@ -86,19 +86,12 @@ pipeline {
             }
             steps {
                 script {
-                    echo "Branch ${env.BRANCH_NAME}: Building application..."
+                    echo "Branch ${env.BRANCH_NAME}: Building application in Docker..."
                     
-                    bat '''
-                    where npm >nul 2>&1
-                    if errorlevel 1 (
-                        echo npm not found. Please install Node.js on the Jenkins agent.
-                        exit 1
-                    )
-                    
-                    call npm install
-                    call npm run build
-                    echo Build completed for feature branch testing
-                    '''
+                    bat """
+                    docker build -f docker/frontend.Dockerfile -t ${env.IMAGE_NAME}:${env.IMAGE_TAG} .
+                    echo Build completed successfully for feature branch
+                    """
                 }
             }
         }
