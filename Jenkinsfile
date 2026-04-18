@@ -85,9 +85,21 @@ pipeline {
             }
         }
 
-        stage('Cleanup') {
+        // ✅ NEW SAFE CLEANUP STAGE
+        stage('Cleanup (Only Pipeline Images)') {
             steps {
-                bat 'docker system prune -f'
+                script {
+                    echo "Cleaning up only pipeline-created images..."
+
+                    bat """
+                    docker rmi ${env.IMAGE_NAME}:${env.IMAGE_TAG} >nul 2>&1 || echo No feature image to delete
+                    """
+
+                    // Optional: also clean version tag (main only)
+                    bat """
+                    docker rmi ${env.IMAGE_NAME}:${env.VERSION} >nul 2>&1 || echo No version image to delete
+                    """
+                }
             }
         }
     }
