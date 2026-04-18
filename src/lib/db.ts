@@ -3,7 +3,7 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://admin:password@localhost:27017/intellimail?authSource=admin';
+const MONGODB_URI = process.env.MONGODB_URI || process.env.DATABASEURL || 'mongodb://admin:password@localhost:27017/intellimail?authSource=admin';
 
 let isConnected = false;
 
