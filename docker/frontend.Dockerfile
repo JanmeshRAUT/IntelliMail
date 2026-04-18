@@ -1,17 +1,28 @@
-# Frontend Dockerfile
-FROM node:18-alpine AS builder
-WORKDIR /app
-COPY package*.json ./
-RUN npm install
-COPY . .
-RUN npm run build
+# ----------- BUILD STAGE -----------
+FROM node:22-alpine AS builder
 
-FROM node:18-alpine
 WORKDIR /app
+
+COPY package*.json ./
+RUN npm ci
+
+COPY . .
+
+RUN npm run build
+RUN npm run build:server
+
+
+# ----------- PRODUCTION STAGE -----------
+FROM node:22-alpine
+
+WORKDIR /app
+
 COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/server.js ./
 COPY --from=builder /app/package*.json ./
-COPY --from=builder /app/server.ts ./
-RUN npm install --production
-RUN npm install -g tsx
+
+RUN npm ci --omit=dev
+
 EXPOSE 3000
-CMD ["tsx", "server.ts"]
+
+CMD ["node", "server.js"]
