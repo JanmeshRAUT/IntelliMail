@@ -27,7 +27,10 @@ pipeline {
             }
         }
 
-        stage('Build Docker Image') {
+        stage('Build Docker Image (Main Only)') {
+            when {
+                branch 'main'
+            }
             steps {
                 script {
                     bat """
@@ -51,7 +54,7 @@ pipeline {
             }
         }
 
-        stage('Deploy (Main Only)') {
+        stage('Deploy Docker (Main Only)') {
             when {
                 branch 'main'
             }
@@ -75,14 +78,22 @@ pipeline {
             }
         }
 
-        stage('Non-Main Branch Info') {
+        stage('Start Server (Feature Branch Only)') {
             when { 
                 not {
                     branch 'main'
                 }
             }
             steps {
-                echo "Branch ${env.BRANCH_NAME} built successfully. No deployment."
+                script {
+                    echo "Branch ${env.BRANCH_NAME}: Starting server locally..."
+                    
+                    bat '''
+                    call .venv\\Scripts\\activate.bat
+                    npm install
+                    npm run dev
+                    '''
+                }
             }
         }
     }
