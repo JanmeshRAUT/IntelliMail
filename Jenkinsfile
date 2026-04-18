@@ -78,7 +78,7 @@ pipeline {
             }
         }
 
-        stage('Start Server (Feature Branch Only)') {
+        stage('Build & Test (Feature Branch Only)') {
             when { 
                 not {
                     branch 'main'
@@ -86,12 +86,18 @@ pipeline {
             }
             steps {
                 script {
-                    echo "Branch ${env.BRANCH_NAME}: Starting server locally..."
+                    echo "Branch ${env.BRANCH_NAME}: Building application..."
                     
                     bat '''
-                    call .venv\\Scripts\\activate.bat
-                    npm install
-                    npm run dev
+                    where npm >nul 2>&1
+                    if errorlevel 1 (
+                        echo npm not found. Please install Node.js on the Jenkins agent.
+                        exit 1
+                    )
+                    
+                    call npm install
+                    call npm run build
+                    echo Build completed for feature branch testing
                     '''
                 }
             }
