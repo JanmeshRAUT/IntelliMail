@@ -483,7 +483,8 @@ export default function ThreadDetail() {
             </div>
           </div>
         </aside>
-      )}
+      </div>
+    )}
     </div>
   );
 }
