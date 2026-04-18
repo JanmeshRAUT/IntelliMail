@@ -85,23 +85,23 @@ pipeline {
             }
         }
 
-        // ✅ NEW SAFE CLEANUP STAGE
+        // ✅ SAFE CLEANUP (FINAL FIX)
         stage('Cleanup (Only Pipeline Images)') {
             steps {
                 script {
                     echo "Cleaning up only pipeline-created images..."
 
-                    bat """
-                    docker rmi ${env.IMAGE_NAME}:${env.IMAGE_TAG} >nul 2>&1 || echo No feature image to delete
-                    """
+                    // Force success no matter what happens
+                    bat '''
+                    docker rmi %IMAGE_NAME%:%IMAGE_TAG% >nul 2>&1
+                    docker rmi %IMAGE_NAME%:%VERSION% >nul 2>&1
+                    exit /b 0
+                    '''
 
-                    // Optional: also clean version tag (main only)
-                    bat """
-                    docker rmi ${env.IMAGE_NAME}:${env.VERSION} >nul 2>&1 || echo No version image to delete
-                    """
+                    echo "Cleanup completed safely"
                 }
             }
-        }
+        }   
     }
 
     post {
