@@ -17,7 +17,9 @@ import {
 
 import type { Email, Thread, EmailSecurityAnalysis, ThreadSecuritySummary, LinkSecurityAnalysis } from './types';
 
-const ML_SERVICE_URL = (typeof process !== 'undefined' && process.env?.VITE_ML_SERVICE_URL) || (import.meta as any).env?.VITE_ML_SERVICE_URL || 'http://localhost:5000';
+const ML_SERVICE_URL = (typeof process !== 'undefined' && process.env.VITE_ML_SERVICE_URL) || 
+                       (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_ML_SERVICE_URL) || 
+                       'http://localhost:5000';
 const TRUSTED_DOMAINS = ['coursera.org', 'google.com', 'microsoft.com', 'linkedin.com'];
 const SUSPICIOUS_TLDS = ['xyz', 'ru', 'tk'];
 
