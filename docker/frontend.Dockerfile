@@ -2,7 +2,7 @@
 FROM node:18 AS builder
 WORKDIR /app
 COPY package*.json ./
-RUN npm install --legacy-peer-deps --force && npm cache clean --force
+RUN rm -rf node_modules package-lock.json && npm install --legacy-peer-deps && npm rebuild
 COPY . .
 RUN npm run build
 
