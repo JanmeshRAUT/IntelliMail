@@ -90,7 +90,6 @@ pipeline {
             steps {
                 script {
                     echo "Image deletion disabled. Image preserved: ${env.IMAGE_NAME}:${env.IMAGE_TAG}"
-                    exit /b 0
                 }
             }
         }   
