@@ -6,7 +6,7 @@ pipeline {
     }
 
     environment {
-        IMAGE_NAME = "email-detection"
+        IMAGE_NAME = "email-detection-3"
         DOCKER_CONTENT_TRUST = "0"
     }
 
