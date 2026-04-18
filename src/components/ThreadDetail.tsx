@@ -491,5 +491,3 @@ export default function ThreadDetail() {
 function cn(...inputs: any[]) {
   return inputs.filter(Boolean).join(' ');
 }
-}
-}
