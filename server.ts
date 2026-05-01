@@ -70,7 +70,8 @@ async function startServer() {
       });
 
       if (!hfResponse.ok) {
-        console.warn('Hugging Face API error, falling back to local analysis');
+        const errorText = await hfResponse.text();
+        console.warn(`Hugging Face API error (${hfResponse.status}): ${errorText}`);
         return null;
       }
 
