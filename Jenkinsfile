@@ -63,7 +63,8 @@ pipeline {
                     bat """
                     docker run -d ^
                     --name email-detection-container ^
-                    -p 5000:5000 ^
+                    -p 5000:3000 ^
+                    --env-file .env ^
                     ${env.IMAGE_NAME}:${env.VERSION} || exit /b
                     """
 
