@@ -3,6 +3,7 @@ pipeline {
 
     options {
         timestamps()
+        disableConcurrentBuilds(abortPreviousBuilds: true)
     }
 
     environment {

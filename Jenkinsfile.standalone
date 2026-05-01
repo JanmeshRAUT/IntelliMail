@@ -1,5 +1,9 @@
 pipeline {
     agent any
+    
+    options {
+        disableConcurrentBuilds(abortPreviousBuilds: true)
+    }
 
     environment {
         COMPOSE_PROJECT_NAME = "intellimail-standalone"
