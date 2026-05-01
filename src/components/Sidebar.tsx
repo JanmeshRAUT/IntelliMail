@@ -31,9 +31,8 @@ export default function Sidebar({ user, onLogout }: SidebarProps) {
       </div>
 
       <nav className="flex-1 px-4 space-y-3">
-        <NavItem to="/" icon={<Inbox className="w-5 h-5 transition-transform group-hover:scale-110" />} label="Inbox" />
-        <NavItem to="/analytics" icon={<BarChart3 className="w-5 h-5 transition-transform group-hover:scale-110" />} label="Analytics" />
-        <NavItem to="/profile" icon={<User className="w-5 h-5 transition-transform group-hover:scale-110" />} label="Profile" />
+        <NavItem to="/" icon={<Inbox className="w-5 h-5 transition-transform group-hover:scale-110" />} label="Intelligence Feed" />
+        <NavItem to="/analytics" icon={<BarChart3 className="w-5 h-5 transition-transform group-hover:scale-110" />} label="Security Dashboard" />
         <NavItem to="/settings" icon={<Settings className="w-5 h-5 transition-transform group-hover:scale-110" />} label="Settings" />
       </nav>
 
