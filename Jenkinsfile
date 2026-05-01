@@ -53,25 +53,21 @@ pipeline {
             when { branch 'main' }
             steps {
                 script {
-                    echo "Deploying version ${env.VERSION}..."
-
-                    bat '''
-                    docker rm -f email-detection-container >nul 2>&1 || echo Container not found
-                    docker rm -f intellmail-app >nul 2>&1 || echo Legacy container not found
-                    '''
+                    echo "Deploying version ${env.VERSION} on port 5000..."
 
                     withCredentials([file(credentialsId: 'env-file', variable: 'ENV_FILE')]) {
-                        bat """
-                        docker run -d ^
-                        --name email-detection-container ^
-                        -p 5000:3000 ^
-                        -e NODE_ENV=production ^
-                        --env-file %ENV_FILE% ^
-                        ${env.IMAGE_NAME}:${env.VERSION} || exit /b
-                        """
+                        bat "copy /Y %ENV_FILE% .env"
+                        
+                        // Use unique project name and set ports
+                        // Scale grafana to 0 to disable it for Multibranch
+                        bat '''
+                        set APP_PORT=5000
+                        set MONGO_PORT=27017
+                        docker-compose -p intellimail-multibranch up -d --build --scale grafana=0 --remove-orphans
+                        '''
                     }
 
-                    echo "Deployed: ${env.IMAGE_NAME}:${env.VERSION}"
+                    echo "Deployed: ${env.IMAGE_NAME}:${env.VERSION} at http://localhost:5000"
                 }
             }
         }
