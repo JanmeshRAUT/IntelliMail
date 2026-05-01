@@ -57,6 +57,7 @@ pipeline {
 
                     bat '''
                     docker rm -f email-detection-container >nul 2>&1 || echo Container not found
+                    docker rm -f intellmail-app >nul 2>&1 || echo Legacy container not found
                     '''
 
                     bat """
