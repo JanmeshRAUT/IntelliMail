@@ -17,7 +17,7 @@
   },
   "editable": true,
   "fiscalYearStartMonth": 0,
-  "graphTooltip": 0,
+  "graphTooltip": 1,
   "id": null,
   "links": [],
   "liveNow": false,
@@ -32,13 +32,33 @@
           "color": {
             "mode": "thresholds"
           },
-          "mappings": [],
+          "mappings": [
+            {
+              "options": {
+                "1": {
+                  "color": "green",
+                  "index": 1,
+                  "text": "ONLINE"
+                },
+                "0": {
+                  "color": "red",
+                  "index": 0,
+                  "text": "OFFLINE"
+                }
+              },
+              "type": "value"
+            }
+          ],
           "thresholds": {
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
+                "color": "red",
                 "value": null
+              },
+              {
+                "color": "green",
+                "value": 1
               }
             ]
           }
@@ -47,15 +67,15 @@
       },
       "gridPos": {
         "h": 4,
-        "w": 6,
+        "w": 4,
         "x": 0,
         "y": 0
       },
-      "id": 3,
+      "id": 10,
       "options": {
-        "colorMode": "value",
-        "graphMode": "area",
-        "justifyMode": "auto",
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
         "orientation": "auto",
         "reduceOptions": {
           "calcs": [
@@ -64,7 +84,7 @@
           "fields": "",
           "values": false
         },
-        "textMode": "auto"
+        "textMode": "value"
       },
       "targets": [
         {
@@ -73,11 +93,11 @@
             "uid": "Prometheus"
           },
           "editorMode": "code",
-          "expr": "up{job=\"prometheus\"}",
+          "expr": "up{job=\"intellimail-app\"}",
           "refId": "A"
         }
       ],
-      "title": "System Status",
+      "title": "System Core",
       "type": "stat"
     },
     {
@@ -99,21 +119,26 @@
                 "value": null
               },
               {
+                "color": "#EAB839",
+                "value": 50
+              },
+              {
                 "color": "red",
-                "value": 1
+                "value": 80
               }
             ]
-          }
+          },
+          "unit": "percent"
         },
         "overrides": []
       },
       "gridPos": {
         "h": 4,
-        "w": 6,
-        "x": 6,
+        "w": 4,
+        "x": 4,
         "y": 0
       },
-      "id": 4,
+      "id": 11,
       "options": {
         "colorMode": "value",
         "graphMode": "area",
@@ -135,11 +160,11 @@
             "uid": "Prometheus"
           },
           "editorMode": "code",
-          "expr": "vector(0)",
+          "expr": "process_cpu_seconds_total * 100",
           "refId": "A"
         }
       ],
-      "title": "Active Threats",
+      "title": "CPU Intensity",
       "type": "stat"
     },
     {
@@ -161,17 +186,18 @@
                 "value": null
               }
             ]
-          }
+          },
+          "unit": "bytes"
         },
         "overrides": []
       },
       "gridPos": {
         "h": 4,
-        "w": 6,
-        "x": 12,
+        "w": 4,
+        "x": 8,
         "y": 0
       },
-      "id": 5,
+      "id": 12,
       "options": {
         "colorMode": "value",
         "graphMode": "area",
@@ -193,11 +219,70 @@
             "uid": "Prometheus"
           },
           "editorMode": "code",
-          "expr": "vector(124)",
+          "expr": "process_resident_memory_bytes",
           "refId": "A"
         }
       ],
-      "title": "Analyzed Emails",
+      "title": "RAM Footprint",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "Prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 12,
+        "y": 0
+      },
+      "id": 13,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "Prometheus"
+          },
+          "editorMode": "code",
+          "expr": "process_start_time_seconds",
+          "refId": "A"
+        }
+      ],
+      "title": "Uptime",
       "type": "stat"
     },
     {
@@ -225,11 +310,11 @@
       },
       "gridPos": {
         "h": 4,
-        "w": 6,
-        "x": 18,
+        "w": 4,
+        "x": 16,
         "y": 0
       },
-      "id": 6,
+      "id": 14,
       "options": {
         "colorMode": "value",
         "graphMode": "area",
@@ -251,11 +336,69 @@
             "uid": "Prometheus"
           },
           "editorMode": "code",
-          "expr": "vector(100)",
+          "expr": "nodejs_active_handles_total",
           "refId": "A"
         }
       ],
-      "title": "System Uptime",
+      "title": "Active Handles",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "Prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 20,
+        "y": 0
+      },
+      "id": 15,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "Prometheus"
+          },
+          "editorMode": "code",
+          "expr": "nodejs_active_requests_total",
+          "refId": "A"
+        }
+      ],
+      "title": "Active Requests",
       "type": "stat"
     },
     {
@@ -276,21 +419,21 @@
             "axisPlacement": "auto",
             "barAlignment": 0,
             "drawStyle": "line",
-            "fillOpacity": 10,
-            "gradientMode": "none",
+            "fillOpacity": 20,
+            "gradientMode": "opacity",
             "hideFrom": {
               "legend": false,
               "tooltip": false,
               "viz": false
             },
             "insertNulls": false,
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
             "pointSize": 5,
             "scaleDistribution": {
               "type": "linear"
             },
-            "showPoints": "auto",
+            "showPoints": "never",
             "spanNulls": false,
             "stacking": {
               "group": "A",
@@ -307,13 +450,10 @@
               {
                 "color": "green",
                 "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
               }
             ]
-          }
+          },
+          "unit": "bytes"
         },
         "overrides": []
       },
@@ -326,14 +466,18 @@
       "id": 1,
       "options": {
         "legend": {
-          "calcs": [],
-          "displayMode": "list",
+          "calcs": [
+            "lastNotNull",
+            "max",
+            "min"
+          ],
+          "displayMode": "table",
           "placement": "bottom",
           "showLegend": true
         },
         "tooltip": {
-          "mode": "single",
-          "sort": "none"
+          "mode": "multi",
+          "sort": "desc"
         }
       },
       "targets": [
@@ -343,13 +487,22 @@
             "uid": "Prometheus"
           },
           "editorMode": "code",
-          "expr": "process_cpu_seconds_total",
-          "format": "time_series",
-          "range": true,
+          "expr": "nodejs_heap_size_total_bytes",
+          "legendFormat": "Heap Total",
           "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "Prometheus"
+          },
+          "editorMode": "code",
+          "expr": "nodejs_heap_size_used_bytes",
+          "legendFormat": "Heap Used",
+          "refId": "B"
         }
       ],
-      "title": "CPU Usage Trend",
+      "title": "Node.js Memory Dynamics",
       "type": "timeseries"
     },
     {
@@ -370,21 +523,21 @@
             "axisPlacement": "auto",
             "barAlignment": 0,
             "drawStyle": "line",
-            "fillOpacity": 10,
-            "gradientMode": "none",
+            "fillOpacity": 20,
+            "gradientMode": "opacity",
             "hideFrom": {
               "legend": false,
               "tooltip": false,
               "viz": false
             },
             "insertNulls": false,
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
             "pointSize": 5,
             "scaleDistribution": {
               "type": "linear"
             },
-            "showPoints": "auto",
+            "showPoints": "never",
             "spanNulls": false,
             "stacking": {
               "group": "A",
@@ -401,10 +554,6 @@
               {
                 "color": "green",
                 "value": null
-              },
-              {
-                "color": "red",
-                "value": 80
               }
             ]
           }
@@ -420,14 +569,17 @@
       "id": 2,
       "options": {
         "legend": {
-          "calcs": [],
-          "displayMode": "list",
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ],
+          "displayMode": "table",
           "placement": "bottom",
           "showLegend": true
         },
         "tooltip": {
-          "mode": "single",
-          "sort": "none"
+          "mode": "multi",
+          "sort": "desc"
         }
       },
       "targets": [
@@ -437,32 +589,95 @@
             "uid": "Prometheus"
           },
           "editorMode": "code",
-          "expr": "process_resident_memory_bytes",
-          "format": "time_series",
-          "range": true,
+          "expr": "rate(nodejs_eventloop_lag_seconds_count[1m])",
+          "legendFormat": "Event Loop Lag",
           "refId": "A"
         }
       ],
-      "title": "Memory Consumption",
+      "title": "Engine Latency (Event Loop)",
       "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "Prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "color-background"
+            },
+            "inspect": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 24,
+        "x": 0,
+        "y": 12
+      },
+      "id": 16,
+      "options": {
+        "footer": {
+          "fields": "",
+          "reducer": [
+            "sum"
+          ],
+          "show": false
+        },
+        "showHeader": true
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "Prometheus"
+          },
+          "editorMode": "code",
+          "expr": "nodejs_version_info",
+          "format": "table",
+          "instant": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Runtime Environment Info",
+      "type": "table"
     }
   ],
   "schemaVersion": 39,
   "tags": [
-    "security",
+    "high-end",
+    "forensics",
     "intellimail"
   ],
   "templating": {
     "list": []
   },
   "time": {
-    "from": "now-6h",
+    "from": "now-1h",
     "to": "now"
   },
   "timepicker": {},
-  "timezone": "",
-  "title": "IntelliMail High-Level Security Dashboard",
-  "uid": "intellimail-high-level",
-  "version": 1,
+  "timezone": "browser",
+  "title": "IntelliMail HIGH-END Security Operations Center",
+  "uid": "intellimail-high-end-soc",
+  "version": 2,
   "weekStart": ""
 }
