@@ -4,7 +4,12 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { google } from 'googleapis';
 import dotenv from 'dotenv';
-import { analyzeThreadEmails, analyzeMultipleThreads } from './src/lib/securityService.js';
+import { 
+  analyzeThreadEmails, 
+  analyzeMultipleThreads, 
+  analyzeThreadEmailsWithMl, 
+  analyzeMultipleThreadsWithMl 
+} from './src/lib/securityService.js';
 import { connectDB, disconnectDB } from './src/lib/db.js';
 import * as dbService from './src/lib/dbService.js';
 import type { Thread } from './src/lib/types.js';
@@ -228,8 +233,8 @@ async function startServer() {
     }
 
     try {
-      // Analyze the thread
-      const analysis = analyzeThreadEmails(thread as Thread);
+      // Analyze the thread using ML-backed service
+      const analysis = await analyzeThreadEmailsWithMl(thread as Thread);
 
       // Save to MongoDB if userId provided
       if (userId) {
@@ -275,7 +280,7 @@ async function startServer() {
     }
 
     try {
-      const analyses = analyzeMultipleThreads(threads as Thread[]);
+      const analyses = await analyzeMultipleThreadsWithMl(threads as Thread[]);
 
       // Save all analyses to MongoDB if userId provided
       if (userId) {
