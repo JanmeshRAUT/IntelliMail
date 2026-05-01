@@ -70,7 +70,7 @@ async function startServer() {
           Authorization: `Bearer ${process.env.HUGGINGFACE_API_KEY}` 
         },
         method: 'POST',
-        body: JSON.stringify({ email: text }),
+        body: JSON.stringify({ text }),
       });
 
       if (!hfResponse.ok) {
