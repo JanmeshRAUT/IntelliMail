@@ -60,13 +60,15 @@ pipeline {
                     docker rm -f intellmail-app >nul 2>&1 || echo Legacy container not found
                     '''
 
-                    bat """
-                    docker run -d ^
-                    --name email-detection-container ^
-                    -p 5000:3000 ^
-                    --env-file .env ^
-                    ${env.IMAGE_NAME}:${env.VERSION} || exit /b
-                    """
+                    withCredentials([file(credentialsId: 'env-file', variable: 'ENV_FILE')]) {
+                        bat """
+                        docker run -d ^
+                        --name email-detection-container ^
+                        -p 5000:3000 ^
+                        --env-file %ENV_FILE% ^
+                        ${env.IMAGE_NAME}:${env.VERSION} || exit /b
+                        """
+                    }
 
                     echo "Deployed: ${env.IMAGE_NAME}:${env.VERSION}"
                 }
