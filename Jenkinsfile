@@ -6,7 +6,7 @@ pipeline {
     }
 
     environment {
-        IMAGE_NAME = "email-detection-2"
+        IMAGE_NAME = "email-detection-3"
         DOCKER_CONTENT_TRUST = "0"
     }
 
@@ -85,20 +85,11 @@ pipeline {
             }
         }
 
-        // ✅ SAFE CLEANUP (FINAL FIX)
-        stage('Cleanup (Only Pipeline Images)') {
+        // ✅ SAFE CLEANUP (DELETION DISABLED TO PRESERVE IMAGES)
+        stage('Cleanup (Log only)') {
             steps {
                 script {
-                    echo "Cleaning up only pipeline-created images..."
-
-                    // Force success no matter what happens
-                    bat '''
-                    docker rmi %IMAGE_NAME%:%IMAGE_TAG% >nul 2>&1
-                    docker rmi %IMAGE_NAME%:%VERSION% >nul 2>&1
-                    exit /b 0
-                    '''
-
-                    echo "Cleanup completed safely"
+                    echo "Image deletion disabled. Image preserved: ${env.IMAGE_NAME}:${env.IMAGE_TAG}"
                 }
             }
         }   

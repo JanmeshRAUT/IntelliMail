@@ -6,6 +6,7 @@ export type AttackType =
   | 'Spoofing'
   | 'Account Compromise'
   | 'Social Engineering'
+  | 'Marketing / Bulk Email'
   | 'Unknown';
 
 interface AttackClassification {
@@ -18,8 +19,24 @@ interface AttackClassification {
  * Classify attack type based on email analysis
  */
 export function classifyEmailAttack(email: EmailSecurityAnalysis, index: number): AttackClassification {
+  if (email.bulkEmailCandidate) {
+    return {
+      type: 'Marketing / Bulk Email',
+      confidence: 'High',
+      description: 'Marketing or newsletter-style email from a trusted source',
+    };
+  }
+
   const threatCount = email.threats.length;
   const linkCount = email.links.length;
+
+  if (email.trustedDomain && threatCount === 0 && !email.newSender && !email.toneChanged) {
+    return {
+      type: 'Unknown',
+      confidence: 'High',
+      description: 'Trusted domain with no malicious indicators',
+    };
+  }
 
   // Phishing - Multiple threat keywords + links + urgency
   if (threatCount >= 2 && linkCount > 0) {
@@ -86,6 +103,14 @@ export function classifyEmailAttack(email: EmailSecurityAnalysis, index: number)
  * Classify thread-level attack type
  */
 export function classifyThreadAttack(summary: ThreadSecuritySummary): AttackClassification {
+  if (summary.bulkEmailCandidate) {
+    return {
+      type: 'Marketing / Bulk Email',
+      confidence: 'High',
+      description: 'Trusted marketing-style thread with many links and low threat indicators',
+    };
+  }
+
   const highRiskEmails = summary.emails.filter((e) => e.riskLevel === 'High');
   
   if (highRiskEmails.length === 0) {
@@ -143,6 +168,7 @@ export function getAttackTypeDisplay(type: AttackType) {
     'Spoofing': { icon: '🎭', color: 'bg-purple-100 text-purple-800', label: 'Spoofing Attempt' },
     'Account Compromise': { icon: '⚠️', color: 'bg-red-100 text-red-800', label: 'Account Compromise' },
     'Social Engineering': { icon: '🎯', color: 'bg-yellow-100 text-yellow-800', label: 'Social Engineering' },
+    'Marketing / Bulk Email': { icon: '📣', color: 'bg-green-100 text-green-800', label: 'Marketing / Bulk Email' },
     'Unknown': { icon: '❓', color: 'bg-gray-100 text-gray-800', label: 'Unknown Threat' },
   };
 

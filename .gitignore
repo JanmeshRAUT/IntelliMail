@@ -10,12 +10,5 @@ coverage/
 # ML datasets (local only)
 ml-model/data/*.csv
 
-# Python
-.venv/
-__pycache__/
-*.pyc
-*.pyo
-*.egg-info/
-
-# VS Code
-.vscode/
+# Python cache
+ml-model/__pycache__/

@@ -91,8 +91,20 @@ export const EmailCard: React.FC<EmailCardProps> = ({
               <span className="text-lg">{attackDisplay.icon}</span>
               <span>{attackDisplay.label}</span>
               <span className="ml-auto text-xs opacity-75">
-                {attack.confidence} Confidence
+                {email.confidenceLabel || `${attack.confidence} Confidence`}
               </span>
+            </div>
+          )}
+
+          {!isSuspicious && email.confidenceLabel && (
+            <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 font-semibold text-emerald-800 flex items-center gap-2">
+              <span className="text-lg">🛡️</span>
+              <span>{email.confidenceLabel}</span>
+              {email.bulkEmailCandidate && (
+                <span className="ml-auto rounded-full bg-emerald-100 px-2 py-1 text-[11px] font-bold uppercase tracking-wide text-emerald-700">
+                  Marketing / Bulk Email
+                </span>
+              )}
             </div>
           )}
 
@@ -137,6 +149,7 @@ export const EmailCard: React.FC<EmailCardProps> = ({
             explanation={email.explanation}
             threats={email.threats}
             links={email.links}
+            linkAnalysis={email.linkAnalysis}
             newSender={email.newSender}
             toneChanged={email.toneChanged}
             riskLevel={email.riskLevel}
@@ -150,9 +163,11 @@ export const EmailCard: React.FC<EmailCardProps> = ({
             <div className="grid grid-cols-2 gap-2">
               {[
                 { label: 'Threat Keywords', value: email.threats.length, active: email.threats.length > 0 },
-                { label: 'Suspicious Links', value: email.links.length, active: email.links.length > 0 },
+                { label: 'Flagged Links', value: email.linkAnalysis?.filter((link) => link.phishingDetected).length ?? email.links.length, active: (email.linkAnalysis?.filter((link) => link.phishingDetected).length ?? email.links.length) > 0 },
                 { label: 'New Sender', value: email.newSender ? 'Yes' : 'No', active: email.newSender },
                 { label: 'Tone Changed', value: email.toneChanged ? 'Yes' : 'No', active: email.toneChanged },
+                { label: 'Trusted Domain', value: email.trustedDomain ? 'Yes' : 'No', active: email.trustedDomain },
+                { label: 'Bulk Email', value: email.bulkEmailCandidate ? 'Yes' : 'No', active: email.bulkEmailCandidate },
               ].map((factor, idx) => (
                 <div
                   key={idx}

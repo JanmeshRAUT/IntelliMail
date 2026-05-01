@@ -18,6 +18,9 @@ import {
   upsertThreads,
 } from '../lib/localData';
 import { requestGoogleAccessToken } from '../lib/googleAuth';
+import { SecurityDashboard } from './SecurityDashboard';
+import type { Thread as SecurityThread, Email as SecurityEmail } from '../lib/types';
+import { analyzeMultipleThreadsWithMl } from '../lib/securityService';
 
 export default function Dashboard() {
   const [threads, setThreads] = useState<Thread[]>([]);
@@ -485,28 +488,36 @@ export default function Dashboard() {
                         </div>
                       </Link>
                     </motion.div>
-                  );
-                })}
-              </AnimatePresence>
-              
-              {filteredThreads.length === 0 && !loading && (
-                <motion.div 
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className="text-center py-24 space-y-6 bg-[var(--card)] border border-[var(--border)] rounded-[2rem] border-dashed"
-                >
-                  <div className="inline-flex p-6 bg-[var(--secondary)] rounded-3xl text-primary-500">
-                    <Inbox className="w-10 h-10" />
-                  </div>
-                  <div className="space-y-2">
-                    <h3 className="text-2xl font-bold">Nothing found here</h3>
-                    <p className="text-[var(--muted-foreground)] max-w-sm mx-auto font-medium">Try syncing your account or adjusting your search filters to see more activity.</p>
-                  </div>
-                </motion.div>
-              )}
-            </div>
-          )}
-        </div>
+                  ))}
+                </AnimatePresence>
+                
+                {filteredThreads.length === 0 && !loading && (
+                  <motion.div 
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="text-center py-24 space-y-6 bg-[var(--card)] border border-[var(--border)] rounded-[2rem] border-dashed"
+                  >
+                    <div className="inline-flex p-6 bg-[var(--secondary)] rounded-3xl text-primary-500">
+                      <Inbox className="w-10 h-10" />
+                    </div>
+                    <div className="space-y-2">
+                      <h3 className="text-2xl font-bold">Nothing found here</h3>
+                      <p className="text-[var(--muted-foreground)] max-w-sm mx-auto font-medium">Try syncing your account or adjusting your search filters to see more activity.</p>
+                    </div>
+                  </motion.div>
+                )}
+              </div>
+            )}
+          </div>
+        ) : (
+          // Security Analysis View
+          <div className="p-8">
+            <SecurityDashboard 
+              threads={securityThreads}
+              onAnalyzeThreads={async (threadsToAnalyze) => analyzeMultipleThreadsWithMl(threadsToAnalyze)}
+            />
+          </div>
+        )}
       </div>
     </div>
   );

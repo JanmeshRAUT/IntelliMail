@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { BarChart3, TrendingUp, AlertTriangle, AlertCircle, Shield } from 'lucide-react';
+import { BarChart3, TrendingUp, AlertTriangle, Shield, Activity, Sparkles, Layers3, Mail } from 'lucide-react';
 import { motion } from 'motion/react';
 import { Thread, getThreads } from '../lib/localData';
 
@@ -16,232 +16,284 @@ export default function Analytics() {
     return () => window.removeEventListener('intellimail:data-updated', hydrate);
   }, []);
 
-  const stats = {
-    total: threads.length,
-    threats: threads.filter(t => t.analysis?.threats && t.analysis.threats.length > 0).length,
-    high: threads.filter(t => t.analysis?.priority === 'High').length,
-    categories: {
-      work: threads.filter(t => t.analysis?.category === 'Work').length,
-      personal: threads.filter(t => t.analysis?.category === 'Personal').length,
-      promotions: threads.filter(t => t.analysis?.category === 'Promotions').length,
-      spam: threads.filter(t => t.analysis?.category === 'Spam').length,
-    },
+  const securityThreads = threads.filter((thread) => thread.analysis?.threats && thread.analysis.threats.length > 0);
+  const highPriorityThreads = threads.filter((thread) => thread.analysis?.priority === 'High');
+  const spamThreads = threads.filter((thread) => thread.analysis?.category === 'Spam');
+  const promotionalThreads = threads.filter((thread) => thread.analysis?.category === 'Promotions');
+  const workThreads = threads.filter((thread) => thread.analysis?.category === 'Work');
+  const personalThreads = threads.filter((thread) => thread.analysis?.category === 'Personal');
+
+  const sentimentCounts = {
+    positive: threads.filter((thread) => thread.analysis?.sentiment === 'Positive').length,
+    neutral: threads.filter((thread) => thread.analysis?.sentiment === 'Neutral').length,
+    negative: threads.filter((thread) => thread.analysis?.sentiment === 'Negative').length,
   };
 
-  const sentiments = {
-    positive: threads.filter(t => t.analysis?.sentiment === 'Positive').length,
-    neutral: threads.filter(t => t.analysis?.sentiment === 'Neutral').length,
-    negative: threads.filter(t => t.analysis?.sentiment === 'Negative').length,
-  };
+  const threatRate = threads.length > 0 ? Math.round((securityThreads.length / threads.length) * 100) : 0;
+  const highPriorityRate = threads.length > 0 ? Math.round((highPriorityThreads.length / threads.length) * 100) : 0;
+  const spamRate = threads.length > 0 ? Math.round((spamThreads.length / threads.length) * 100) : 0;
+
+  const reportCards = [
+    {
+      label: 'Total Threads',
+      value: threads.length,
+      icon: Layers3,
+      accent: 'from-slate-500 to-slate-700',
+      note: 'Conversations reviewed',
+    },
+    {
+      label: 'Security Flags',
+      value: securityThreads.length,
+      icon: Shield,
+      accent: 'from-red-500 to-rose-600',
+      note: `${threatRate}% of inbox`,
+    },
+    {
+      label: 'High Priority',
+      value: highPriorityThreads.length,
+      icon: AlertTriangle,
+      accent: 'from-amber-500 to-orange-600',
+      note: `${highPriorityRate}% escalated`,
+    },
+    {
+      label: 'Spam / Promotions',
+      value: spamThreads.length + promotionalThreads.length,
+      icon: Mail,
+      accent: 'from-indigo-500 to-violet-600',
+      note: `${spamRate}% filtered`,
+    },
+  ];
+
+  const topThreads = [...threads]
+    .filter((thread) => thread.analysis)
+    .sort((a, b) => {
+      const aScore = a.analysis?.priority === 'High' ? 3 : a.analysis?.priority === 'Medium' ? 2 : 1;
+      const bScore = b.analysis?.priority === 'High' ? 3 : b.analysis?.priority === 'Medium' ? 2 : 1;
+      return bScore - aScore;
+    })
+    .slice(0, 5);
 
   return (
-    <div className="p-8 max-w-6xl mx-auto space-y-12 text-[var(--foreground)] transition-colors duration-300">
-      <header className="flex flex-col gap-3">
-        <div className="flex items-center gap-4">
-          <div className="p-3 bg-primary-100 dark:bg-primary-900/30 rounded-2xl shadow-lg shadow-primary-500/10">
-            <BarChart3 className="w-8 h-8 text-primary-600 dark:text-primary-400" />
-          </div>
-          <div>
-            <h1 className="text-4xl font-extrabold tracking-tight">Intelligence Hub</h1>
-            <p className="text-[var(--muted-foreground)] font-medium">Detailed behavioral analysis across your conversations</p>
-          </div>
-        </div>
-      </header>
-
-      {/* Key Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="bg-[var(--card)] border border-[var(--border)] rounded-3xl p-8 space-y-4 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all group">
-          <div className="flex items-center justify-between">
-            <span className="text-sm font-bold text-[var(--muted-foreground)] uppercase tracking-wider">Total Volume</span>
-            <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg group-hover:scale-110 transition-transform">
-              <TrendingUp className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-            </div>
-          </div>
-          <div>
-            <p className="text-4xl font-black text-[var(--foreground)]">{stats.total}</p>
-            <p className="text-xs text-[var(--muted-foreground)] font-bold mt-1 uppercase tracking-widest opacity-60">Analyzed threads</p>
-          </div>
-        </div>
-
-        <div className="bg-[var(--card)] border border-[var(--border)] rounded-3xl p-8 space-y-4 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all group">
-          <div className="flex items-center justify-between">
-            <span className="text-sm font-bold text-[var(--muted-foreground)] uppercase tracking-wider">High Priority</span>
-            <div className="p-2 bg-orange-100 dark:bg-orange-900/30 rounded-lg group-hover:scale-110 transition-transform">
-              <AlertTriangle className="w-4 h-4 text-orange-600 dark:text-orange-400" />
-            </div>
-          </div>
-          <div>
-            <p className="text-4xl font-black text-[var(--foreground)]">{stats.high}</p>
-            <p className="text-xs text-[var(--muted-foreground)] font-bold mt-1 uppercase tracking-widest opacity-60">
-              {stats.total > 0 ? Math.round((stats.high / stats.total) * 100) : 0}% of inbox
-            </p>
-          </div>
-        </div>
-
-        <div className="bg-[var(--card)] border border-[var(--border)] rounded-3xl p-8 space-y-4 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all group">
-          <div className="flex items-center justify-between">
-            <span className="text-sm font-bold text-[var(--muted-foreground)] uppercase tracking-wider">Security Risks</span>
-            <div className="p-2 bg-red-100 dark:bg-red-900/30 rounded-lg group-hover:scale-110 transition-transform">
-              <Shield className="w-4 h-4 text-red-600 dark:text-red-400" />
-            </div>
-          </div>
-          <div>
-            <p className="text-4xl font-black text-[var(--foreground)]">{stats.threats}</p>
-            <p className="text-xs text-[var(--muted-foreground)] font-bold mt-1 uppercase tracking-widest opacity-60">Urgent threats</p>
-          </div>
-        </div>
-
-        <div className="bg-[var(--card)] border border-[var(--border)] rounded-3xl p-8 space-y-4 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all group">
-          <div className="flex items-center justify-between">
-            <span className="text-sm font-bold text-[var(--muted-foreground)] uppercase tracking-wider">Neutralized Spam</span>
-            <div className="p-2 bg-slate-100 dark:bg-slate-700/40 rounded-lg group-hover:scale-110 transition-transform">
-              <AlertTriangle className="w-4 h-4 text-slate-500 dark:text-slate-400" />
-            </div>
-          </div>
-          <div>
-            <p className="text-4xl font-black text-[var(--foreground)]">{stats.categories.spam}</p>
-            <p className="text-xs text-[var(--muted-foreground)] font-bold mt-1 uppercase tracking-widest opacity-60">
-              {stats.total > 0 ? Math.round((stats.categories.spam / stats.total) * 100) : 0}% filter rate
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* Category Breakdown */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <div className="bg-[var(--card)] border border-[var(--border)] rounded-[2.5rem] p-10 space-y-8 shadow-sm">
-          <div className="flex items-center justify-between">
-            <h2 className="text-2xl font-black tracking-tight">Classification Distribution</h2>
-          </div>
-          <div className="space-y-6">
-            {[
-              { label: 'Work', value: stats.categories.work, color: 'bg-primary-500 shadow-primary-500/30', bg: 'bg-primary-500/10' },
-              { label: 'Personal', value: stats.categories.personal, color: 'bg-emerald-500 shadow-emerald-500/30', bg: 'bg-emerald-500/10' },
-              { label: 'Promotions', value: stats.categories.promotions, color: 'bg-purple-500 shadow-purple-500/30', bg: 'bg-purple-500/10' },
-              { label: 'Spam', value: stats.categories.spam, color: 'bg-red-500 shadow-red-500/30', bg: 'bg-red-500/10' },
-            ].map(cat => (
-              <div key={cat.label} className="space-y-3">
-                <div className="flex items-center justify-between px-1">
-                  <span className="text-sm font-bold text-[var(--muted-foreground)] uppercase tracking-widest">{cat.label}</span>
-                  <span className="text-sm font-black text-[var(--foreground)]">{cat.value}</span>
+    <div className="min-h-full bg-[var(--background)] p-8 text-[var(--foreground)] transition-colors duration-300">
+      <div className="mx-auto max-w-7xl space-y-8">
+        <header className="relative overflow-hidden rounded-[2rem] border border-[var(--border)] bg-[var(--card)] shadow-sm">
+          <div className="absolute inset-0 bg-gradient-to-br from-primary-500/8 via-transparent to-emerald-500/8" />
+          <div className="relative p-8 md:p-10 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+            <div className="space-y-3 max-w-3xl">
+              <div className="inline-flex items-center gap-2 rounded-full border border-primary-200 bg-primary-50 px-3 py-1 text-xs font-bold uppercase tracking-[0.2em] text-primary-700 dark:border-primary-500/30 dark:bg-primary-500/10 dark:text-primary-300">
+                <Sparkles className="w-3.5 h-3.5" />
+                Intelligence Report
+              </div>
+              <div className="flex items-center gap-4">
+                <div className="rounded-2xl bg-primary-100 p-3 dark:bg-primary-900/30">
+                  <BarChart3 className="w-8 h-8 text-primary-600 dark:text-primary-400" />
                 </div>
-                <div className={`w-full h-3 ${cat.bg} rounded-full overflow-hidden`}>
-                  <motion.div
-                    initial={{ width: 0 }}
-                    animate={{ width: `${stats.total > 0 ? (cat.value / stats.total) * 100 : 0}%` }}
-                    transition={{ duration: 1, ease: "easeOut" }}
-                    className={`h-full ${cat.color} rounded-full shadow-lg`}
-                  />
+                <div>
+                  <h1 className="text-3xl md:text-4xl font-black tracking-tight">Analytics Overview</h1>
+                  <p className="text-[var(--muted-foreground)] max-w-2xl leading-relaxed">
+                    Professional summary of inbox security posture, message classifications, and sentiment patterns.
+                  </p>
                 </div>
               </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="bg-[var(--card)] border border-[var(--border)] rounded-[2.5rem] p-10 space-y-8 shadow-sm">
-          <div className="flex items-center justify-between">
-            <h2 className="text-2xl font-black tracking-tight">Sentiment Landscape</h2>
-          </div>
-          <div className="space-y-6">
-            {[
-              { label: 'Positive Resonance', value: sentiments.positive, color: 'bg-teal-500 shadow-teal-500/30', bg: 'bg-teal-500/10' },
-              { label: 'Neutral Baseline', value: sentiments.neutral, color: 'bg-blue-500 shadow-blue-500/30', bg: 'bg-blue-500/10' },
-              { label: 'Negative Indicators', value: sentiments.negative, color: 'bg-rose-500 shadow-rose-500/30', bg: 'bg-rose-500/10' },
-            ].map(sent => (
-              <div key={sent.label} className="space-y-3">
-                <div className="flex items-center justify-between px-1">
-                  <span className="text-sm font-bold text-[var(--muted-foreground)] uppercase tracking-widest">{sent.label}</span>
-                  <span className="text-sm font-black text-[var(--foreground)]">{sent.value}</span>
-                </div>
-                <div className={`w-full h-3 ${sent.bg} rounded-full overflow-hidden`}>
-                  <motion.div
-                    initial={{ width: 0 }}
-                    animate={{ width: `${stats.total > 0 ? (sent.value / stats.total) * 100 : 0}%` }}
-                    transition={{ duration: 1, ease: "easeOut" }}
-                    className={`h-full ${sent.color} rounded-full shadow-lg`}
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Threats Breakdown */}
-      <div className="bg-[var(--card)] border border-[var(--border)] rounded-[2.5rem] p-10 space-y-8 shadow-sm">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Shield className="w-6 h-6 text-red-500" />
-            <h2 className="text-2xl font-black tracking-tight">Security Threat Analysis</h2>
-          </div>
-        </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Threat Summary */}
-          <div className="space-y-4">
-            <div className="bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 rounded-2xl p-6 space-y-3">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-red-200 dark:bg-red-500/30 rounded-lg">
-                  <AlertTriangle className="w-4 h-4 text-red-600 dark:text-red-400" />
-                </div>
-                <span className="text-sm font-bold text-red-700 dark:text-red-300 uppercase tracking-wider">Detected Threats</span>
-              </div>
-              <p className="text-4xl font-black text-red-600 dark:text-red-400">{stats.threats}</p>
-              <p className="text-xs text-red-600/70 dark:text-red-400/70 font-medium">
-                {stats.total > 0 ? Math.round((stats.threats / stats.total) * 100) : 0}% of conversations contain threats
-              </p>
             </div>
 
-            <div className="bg-orange-50 dark:bg-orange-500/10 border border-orange-200 dark:border-orange-500/20 rounded-2xl p-6 space-y-3">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-orange-200 dark:bg-orange-500/30 rounded-lg">
-                  <AlertCircle className="w-4 h-4 text-orange-600 dark:text-orange-400" />
-                </div>
-                <span className="text-sm font-bold text-orange-700 dark:text-orange-300 uppercase tracking-wider">High Priority</span>
+            <div className="rounded-2xl border border-[var(--border)] bg-[var(--background)] px-4 py-3 shadow-sm">
+              <div className="flex items-center gap-3 text-sm font-semibold text-[var(--muted-foreground)]">
+                <Activity className="w-4 h-4 text-primary-600" />
+                {threads.length > 0 ? 'Live inbox trends updated from sync data' : 'No inbox data yet'}
               </div>
-              <p className="text-4xl font-black text-orange-600 dark:text-orange-400">{stats.high}</p>
-              <p className="text-xs text-orange-600/70 dark:text-orange-400/70 font-medium">
-                Requires immediate attention
-              </p>
             </div>
           </div>
+        </header>
 
-          {/* Risk Categories */}
-          <div className="space-y-3">
-            <h3 className="text-sm font-bold text-[var(--muted-foreground)] uppercase tracking-widest px-1">Threat Types Detected</h3>
-            <div className="space-y-2">
+        <section className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+          {reportCards.map((card) => {
+            const Icon = card.icon;
+
+            return (
+              <div key={card.label} className="relative overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--card)] p-5 shadow-sm">
+                <div className={`absolute inset-x-0 top-0 h-1 bg-gradient-to-r ${card.accent}`} />
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--muted-foreground)]">{card.label}</p>
+                    <p className="mt-3 text-3xl font-black text-[var(--foreground)]">{card.value}</p>
+                    <p className="mt-2 text-sm text-[var(--muted-foreground)]">{card.note}</p>
+                  </div>
+                  <div className={`rounded-2xl bg-gradient-to-br ${card.accent} p-3 text-white shadow-lg`}>
+                    <Icon className="w-5 h-5" />
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </section>
+
+        <section className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="rounded-[2rem] border border-[var(--border)] bg-[var(--card)] p-8 shadow-sm space-y-6">
+            <div>
+              <h2 className="text-2xl font-black tracking-tight">Classification Distribution</h2>
+              <p className="text-sm text-[var(--muted-foreground)] mt-1">Thread mix across core conversation categories</p>
+            </div>
+
+            <div className="space-y-5">
               {[
-                { name: 'Phishing Attempts', count: threads.reduce((sum, t) => sum + (t.analysis?.threats?.filter(th => th.toLowerCase().includes('verify') || th.toLowerCase().includes('confirm')).length || 0), 0), color: 'text-red-600 dark:text-red-400' },
-                { name: 'Malware/Links', count: threads.reduce((sum, t) => sum + (t.analysis?.threats?.filter(th => th.toLowerCase().includes('link') || th.toLowerCase().includes('click')).length || 0), 0), color: 'text-orange-600 dark:text-orange-400' },
-                { name: 'Social Engineering', count: threads.reduce((sum, t) => sum + (t.analysis?.threats?.filter(th => th.toLowerCase().includes('urgent') || th.toLowerCase().includes('action')).length || 0), 0), color: 'text-amber-600 dark:text-amber-400' },
-                { name: 'Domain Spoofing', count: threads.reduce((sum, t) => sum + (t.analysis?.threats?.filter(th => th.toLowerCase().includes('domain') || th.toLowerCase().includes('mismatch')).length || 0), 0), color: 'text-yellow-600 dark:text-yellow-400' },
-              ].map(threat => (
-                <div key={threat.name} className="flex items-center justify-between p-3 bg-[var(--secondary)] rounded-lg border border-[var(--border)]">
-                  <span className="text-sm font-medium text-[var(--foreground)]">{threat.name}</span>
-                  <span className={`font-bold text-lg ${threat.color}`}>{threat.count}</span>
+                { label: 'Work', value: workThreads.length, color: 'bg-primary-500 shadow-primary-500/30', bg: 'bg-primary-500/10' },
+                { label: 'Personal', value: personalThreads.length, color: 'bg-emerald-500 shadow-emerald-500/30', bg: 'bg-emerald-500/10' },
+                { label: 'Promotions', value: promotionalThreads.length, color: 'bg-purple-500 shadow-purple-500/30', bg: 'bg-purple-500/10' },
+                { label: 'Spam', value: spamThreads.length, color: 'bg-red-500 shadow-red-500/30', bg: 'bg-red-500/10' },
+              ].map((category) => (
+                <div key={category.label} className="space-y-2">
+                  <div className="flex items-center justify-between px-1">
+                    <span className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--muted-foreground)]">{category.label}</span>
+                    <span className="text-sm font-black text-[var(--foreground)]">{category.value}</span>
+                  </div>
+                  <div className={`h-3 w-full overflow-hidden rounded-full ${category.bg}`}>
+                    <motion.div
+                      initial={{ width: 0 }}
+                      animate={{ width: `${threads.length > 0 ? (category.value / threads.length) * 100 : 0}%` }}
+                      transition={{ duration: 1, ease: 'easeOut' }}
+                      className={`h-full rounded-full ${category.color}`}
+                    />
+                  </div>
                 </div>
               ))}
             </div>
           </div>
-        </div>
-      </div>
 
-      {/* Empty State */}
-      {stats.total === 0 && (
-        <motion.div 
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="bg-[var(--card)] border-2 border-dashed border-[var(--border)] rounded-[3rem] p-24 text-center space-y-6"
-        >
-          <div className="p-6 bg-[var(--secondary)] rounded-full w-24 h-24 flex items-center justify-center mx-auto text-[var(--muted-foreground)]">
-            <BarChart3 className="w-12 h-12" />
+          <div className="rounded-[2rem] border border-[var(--border)] bg-[var(--card)] p-8 shadow-sm space-y-6">
+            <div>
+              <h2 className="text-2xl font-black tracking-tight">Sentiment Landscape</h2>
+              <p className="text-sm text-[var(--muted-foreground)] mt-1">Conversation tone across the current inbox</p>
+            </div>
+
+            <div className="space-y-5">
+              {[
+                { label: 'Positive Resonance', value: sentimentCounts.positive, color: 'bg-teal-500 shadow-teal-500/30', bg: 'bg-teal-500/10' },
+                { label: 'Neutral Baseline', value: sentimentCounts.neutral, color: 'bg-blue-500 shadow-blue-500/30', bg: 'bg-blue-500/10' },
+                { label: 'Negative Indicators', value: sentimentCounts.negative, color: 'bg-rose-500 shadow-rose-500/30', bg: 'bg-rose-500/10' },
+              ].map((sentiment) => (
+                <div key={sentiment.label} className="space-y-2">
+                  <div className="flex items-center justify-between px-1">
+                    <span className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--muted-foreground)]">{sentiment.label}</span>
+                    <span className="text-sm font-black text-[var(--foreground)]">{sentiment.value}</span>
+                  </div>
+                  <div className={`h-3 w-full overflow-hidden rounded-full ${sentiment.bg}`}>
+                    <motion.div
+                      initial={{ width: 0 }}
+                      animate={{ width: `${threads.length > 0 ? (sentiment.value / threads.length) * 100 : 0}%` }}
+                      transition={{ duration: 1, ease: 'easeOut' }}
+                      className={`h-full rounded-full ${sentiment.color}`}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
-          <div className="space-y-2">
-            <p className="text-2xl font-black text-[var(--foreground)]">Insufficient analysis data</p>
-            <p className="text-[var(--muted-foreground)] max-w-sm mx-auto font-medium">Sync your Gmail account from the dashboard to begin generating conversation intelligence.</p>
+        </section>
+
+        <section className="grid grid-cols-1 xl:grid-cols-[1.1fr_0.9fr] gap-6">
+          <div className="rounded-[2rem] border border-[var(--border)] bg-[var(--card)] p-8 shadow-sm">
+            <div className="flex items-center justify-between gap-4 mb-6">
+              <div>
+                <h2 className="text-2xl font-black tracking-tight">Top Findings</h2>
+                <p className="text-sm text-[var(--muted-foreground)] mt-1">Most important threads by priority and security state</p>
+              </div>
+              <TrendingUp className="w-5 h-5 text-primary-600" />
+            </div>
+
+            {topThreads.length > 0 ? (
+              <div className="space-y-4">
+                {topThreads.map((thread, index) => (
+                  <div key={thread.id} className="rounded-2xl border border-[var(--border)] bg-[var(--background)] p-4 shadow-sm">
+                    <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="rounded-full bg-primary-100 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-primary-700">
+                            #{index + 1}
+                          </span>
+                          <span className="truncate text-lg font-bold text-[var(--foreground)]">{thread.subject}</span>
+                        </div>
+                        <p className="mt-1 text-sm text-[var(--muted-foreground)]">
+                          {thread.analysis?.summary || 'No summary available'}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-3 shrink-0">
+                        <span className={`rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wide ${
+                          thread.analysis?.priority === 'High'
+                            ? 'bg-red-100 text-red-800'
+                            : thread.analysis?.priority === 'Medium'
+                              ? 'bg-yellow-100 text-yellow-800'
+                              : 'bg-emerald-100 text-emerald-800'
+                        }`}>
+                          {thread.analysis?.priority || 'Low'} Priority
+                        </span>
+                        {thread.analysis?.threats?.length ? (
+                          <span className="rounded-full bg-red-100 px-3 py-1 text-xs font-bold uppercase tracking-wide text-red-800">
+                            {thread.analysis.threats.length} threat{thread.analysis.threats.length > 1 ? 's' : ''}
+                          </span>
+                        ) : null}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="rounded-2xl border border-dashed border-[var(--border)] bg-[var(--background)] p-10 text-center text-[var(--muted-foreground)]">
+                Sync your mailbox to populate the report.
+              </div>
+            )}
           </div>
-        </motion.div>
-      )}
+
+          <div className="rounded-[2rem] border border-[var(--border)] bg-[var(--card)] p-8 shadow-sm">
+            <div className="flex items-center justify-between gap-4 mb-6">
+              <div>
+                <h2 className="text-2xl font-black tracking-tight">Operational Snapshot</h2>
+                <p className="text-sm text-[var(--muted-foreground)] mt-1">Quick indicators for day-to-day monitoring</p>
+              </div>
+              <Activity className="w-5 h-5 text-primary-600" />
+            </div>
+
+            <div className="space-y-4">
+              {[
+                { label: 'Security risk rate', value: threatRate, text: `${securityThreads.length}/${threads.length || 1} threads`, color: 'bg-red-500' },
+                { label: 'High priority rate', value: highPriorityRate, text: `${highPriorityThreads.length} escalations`, color: 'bg-amber-500' },
+                { label: 'Spam rate', value: spamRate, text: `${spamThreads.length} filtered threads`, color: 'bg-purple-500' },
+              ].map((metric) => (
+                <div key={metric.label} className="space-y-2 rounded-2xl border border-[var(--border)] bg-[var(--background)] p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-bold text-[var(--foreground)]">{metric.label}</p>
+                      <p className="text-xs text-[var(--muted-foreground)]">{metric.text}</p>
+                    </div>
+                    <p className="text-2xl font-black text-[var(--foreground)]">{metric.value}%</p>
+                  </div>
+                  <div className="h-2 overflow-hidden rounded-full bg-[var(--secondary)]">
+                    <div className={`h-full rounded-full ${metric.color}`} style={{ width: `${metric.value}%` }} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {threads.length === 0 && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="rounded-[2rem] border-2 border-dashed border-[var(--border)] bg-[var(--card)] p-20 text-center space-y-6 shadow-sm"
+          >
+            <div className="mx-auto flex h-24 w-24 items-center justify-center rounded-full bg-[var(--secondary)] text-[var(--muted-foreground)]">
+              <BarChart3 className="w-12 h-12" />
+            </div>
+            <div className="space-y-2">
+              <p className="text-2xl font-black text-[var(--foreground)]">No analytics data yet</p>
+              <p className="text-[var(--muted-foreground)] max-w-lg mx-auto font-medium">
+                Sync Gmail from the dashboard to populate this report with security, sentiment, and classification metrics.
+              </p>
+            </div>
+          </motion.div>
+        )}
+      </div>
     </div>
   );
 }
