@@ -12,6 +12,11 @@ pipeline {
     }
 
     stages {
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
         stage('System Validation') {
             steps {
                 echo "Checking Docker..."

@@ -63,6 +63,7 @@ pipeline {
                         bat '''
                         set APP_PORT=5000
                         set MONGO_PORT=27017
+                        set PORT=3000
                         docker-compose -p intellimail-multibranch up -d --build --scale grafana=0 --remove-orphans
                         '''
                     }

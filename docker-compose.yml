@@ -21,6 +21,7 @@ services:
       - "${APP_PORT:-3000}:3000"
     environment:
       - NODE_ENV=production
+      - PORT=3000
       - APP_URL=${APP_URL}
       - MONGODB_URI=mongodb://${MONGO_USER:-admin}:${MONGO_PASSWORD:-password}@mongodb:27017/intellimail?authSource=admin
       - MONGO_USER=${MONGO_USER:-admin}
