@@ -63,22 +63,26 @@ async function startServer() {
         .map((email) => `${email.subject || ''} ${email.body || ''}`)
         .join('\n');
 
-      const hfResponse = await fetch('https://api-inference.huggingface.co/models/JerryJR1705/ThreadDetection', {
-        headers: { Authorization: `Bearer ${process.env.HUGGINGFACE_API_KEY}` },
+      const mlServiceUrl = process.env.ML_SERVICE_URL || 'https://JerryJR1705-intellmail.hf.space';
+      const hfResponse = await fetch(`${mlServiceUrl}/predict-email`, {
+        headers: { 
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${process.env.HUGGINGFACE_API_KEY}` 
+        },
         method: 'POST',
-        body: JSON.stringify({ inputs: text }),
+        body: JSON.stringify({ email: text }),
       });
 
       if (!hfResponse.ok) {
         const errorText = await hfResponse.text();
-        console.warn(`Hugging Face API error (${hfResponse.status}): ${errorText}`);
+        console.warn(`ML Service error (${hfResponse.status}): ${errorText.substring(0, 100)}`);
         return null;
       }
 
-      const hfResult = await hfResponse.json();
-      return hfResult;
+      const result = await hfResponse.json();
+      return result;
     } catch (error) {
-      console.warn('Hugging Face analysis failed:', error);
+      console.warn('ML analysis failed:', error);
       return null;
     }
   }
@@ -119,8 +123,8 @@ async function startServer() {
           .toLowerCase();
         
         // Extract threat information from HF response
-        const threats = hfAnalysis[0]?.label === 'phishing' ? ['Phishing detected by ML model'] : 
-                        hfAnalysis[0]?.label === 'spam' ? ['Spam detected by ML model'] :
+        const threats = hfAnalysis.prediction === 'phishing' ? ['Phishing detected by ML model'] : 
+                        hfAnalysis.prediction === 'spam' ? ['Spam detected by ML model'] :
                         threatKeywords.filter((word) => allText.includes(word));
         
         analysis = {
