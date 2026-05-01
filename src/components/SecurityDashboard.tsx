@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Shield, AlertTriangle, AlertCircle, CheckCircle, Zap, Loader2, ShieldCheck, Sparkles, ArrowUpRight, Mail, Layers3 } from 'lucide-react';
+import { Shield, AlertTriangle, AlertCircle, CheckCircle, Zap, Loader2, ShieldCheck, Sparkles, ArrowUpRight, Mail, Layers3, ExternalLink, X } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
 import { ThreadSecuritySummary } from './ThreadSecuritySummary';
 import { SecurityTimeline } from './SecurityTimeline';
 import type { Thread, ThreadSecuritySummary as ThreadSecuritySummaryType } from '../lib/types';
@@ -21,6 +22,7 @@ export const SecurityDashboard: React.FC<SecurityDashboardProps> = ({
   const [loading, setLoading] = useState(false);
   const [analyzing, setAnalyzing] = useState(new Set<string>());
   const [searchTerm, setSearchTerm] = useState('');
+  const [showFullReport, setShowFullReport] = useState(false);
 
   // Auto-analyze all threads when component mounts or threads change
   useEffect(() => {
@@ -353,23 +355,91 @@ export const SecurityDashboard: React.FC<SecurityDashboardProps> = ({
 
             {selectedAnalysis && selectedThread ? (
               <div className="space-y-6">
-                <ThreadSecuritySummary
-                  summary={selectedAnalysis}
-                  participantCount={selectedThread.participants.length}
-                />
-
-                <div className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-5 shadow-sm">
-                  <div className="flex items-center justify-between gap-4 mb-4">
-                    <div>
-                      <h3 className="text-lg font-black tracking-tight">Detailed Timeline</h3>
-                      <p className="text-sm text-[var(--muted-foreground)]">Email-by-email scoring with link verdicts</p>
+                {/* Concise Report Card */}
+                <div className={cn(
+                  "rounded-[2rem] border-2 p-8 shadow-lg transition-all relative overflow-hidden",
+                  selectedAnalysis.overallRiskLevel === 'High' ? 'bg-red-50 border-red-200 dark:bg-red-500/5' :
+                  selectedAnalysis.overallRiskLevel === 'Medium' ? 'bg-yellow-50 border-yellow-200 dark:bg-yellow-500/5' :
+                  'bg-green-50 border-green-200 dark:bg-green-500/5'
+                )}>
+                  <div className="relative z-10">
+                    <div className="flex items-center justify-between mb-6">
+                      <div className="flex items-center gap-3">
+                        <div className={cn(
+                          "p-3 rounded-2xl",
+                          selectedAnalysis.overallRiskLevel === 'High' ? 'bg-red-500 text-white' :
+                          selectedAnalysis.overallRiskLevel === 'Medium' ? 'bg-yellow-500 text-white' :
+                          'bg-green-500 text-white'
+                        )}>
+                          <Shield className="w-6 h-6" />
+                        </div>
+                        <div>
+                          <h3 className="text-xl font-black tracking-tight">Concise Security Summary</h3>
+                          <p className="text-sm opacity-70 font-medium">Thread Intelligence Overview</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-xs font-bold uppercase tracking-widest opacity-60">Risk Score</p>
+                        <p className={cn(
+                          "text-3xl font-black",
+                          selectedAnalysis.overallRiskLevel === 'High' ? 'text-red-600' :
+                          selectedAnalysis.overallRiskLevel === 'Medium' ? 'text-yellow-600' :
+                          'text-green-600'
+                        )}>{selectedAnalysis.overallRisk}/100</p>
+                      </div>
                     </div>
-                    <div className="text-right text-xs text-[var(--muted-foreground)]">
-                      {selectedAnalysis.confidenceLabel ? selectedAnalysis.confidenceLabel : selectedAnalysis.attackType || 'Thread review'}
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                      <div className="space-y-4">
+                        <div className="space-y-1">
+                          <p className="text-xs font-bold uppercase tracking-widest opacity-60">Primary Verdict</p>
+                          <p className="text-lg font-bold leading-tight">{selectedAnalysis.threadThreatLevel}</p>
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-xs font-bold uppercase tracking-widest opacity-60">Key Signal</p>
+                          <div className="flex flex-wrap gap-2 mt-1">
+                            {selectedAnalysis.attackType && (
+                              <span className="px-2 py-1 rounded-md bg-white/50 dark:bg-black/20 text-xs font-bold border border-black/5 dark:border-white/5">
+                                {selectedAnalysis.attackType}
+                              </span>
+                            )}
+                            {selectedAnalysis.confidenceLabel && (
+                              <span className="px-2 py-1 rounded-md bg-white/50 dark:bg-black/20 text-xs font-bold border border-black/5 dark:border-white/5">
+                                {selectedAnalysis.confidenceLabel}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col justify-end">
+                        <button
+                          onClick={() => setShowFullReport(true)}
+                          className={cn(
+                            "group flex items-center justify-center gap-2 w-full py-4 rounded-2xl font-black text-sm uppercase tracking-widest transition-all shadow-md hover:shadow-xl",
+                            selectedAnalysis.overallRiskLevel === 'High' ? 'bg-red-600 text-white hover:bg-red-700' :
+                            selectedAnalysis.overallRiskLevel === 'Medium' ? 'bg-yellow-600 text-white hover:bg-yellow-700' :
+                            'bg-green-600 text-white hover:bg-green-700'
+                          )}
+                        >
+                          View Full Report
+                          <ExternalLink className="w-4 h-4 transition-transform group-hover:translate-x-1 group-hover:-translate-y-1" />
+                        </button>
+                      </div>
                     </div>
                   </div>
+                </div>
 
-                  <SecurityTimeline summary={selectedAnalysis} autoExpandSuspicious={true} />
+                {/* Timeline Preview (Optional/Simplified) */}
+                <div className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-5 shadow-sm opacity-60 grayscale hover:grayscale-0 hover:opacity-100 transition-all cursor-pointer" onClick={() => setShowFullReport(true)}>
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-sm font-black uppercase tracking-widest">Timeline Preview</h3>
+                    <span className="text-xs font-bold">Click to expand</span>
+                  </div>
+                  <div className="h-12 overflow-hidden relative">
+                    <div className="absolute inset-0 bg-gradient-to-t from-[var(--card)] to-transparent z-10" />
+                    <SecurityTimeline summary={selectedAnalysis} autoExpandSuspicious={false} />
+                  </div>
                 </div>
               </div>
             ) : (
@@ -379,6 +449,62 @@ export const SecurityDashboard: React.FC<SecurityDashboardProps> = ({
                 <p className="text-[var(--muted-foreground)] mt-1">Open any thread to review the executive summary and timeline</p>
               </div>
             )}
+
+            {/* Full Report Modal */}
+            <AnimatePresence>
+              {showFullReport && selectedAnalysis && selectedThread && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-8">
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    onClick={() => setShowFullReport(false)}
+                    className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+                  />
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                    className="relative w-full max-w-5xl max-h-[90vh] overflow-y-auto rounded-[2.5rem] bg-[var(--background)] border border-[var(--border)] shadow-2xl"
+                  >
+                    <div className="sticky top-0 z-20 flex items-center justify-between p-6 bg-[var(--background)]/80 backdrop-blur-md border-bottom border-[var(--border)]">
+                      <div className="flex items-center gap-3">
+                        <Shield className="w-6 h-6 text-primary-600" />
+                        <h2 className="text-xl font-black tracking-tight">Full Security Intelligence Report</h2>
+                      </div>
+                      <button
+                        onClick={() => setShowFullReport(false)}
+                        className="p-3 rounded-full hover:bg-[var(--secondary)] transition-colors"
+                      >
+                        <X className="w-6 h-6" />
+                      </button>
+                    </div>
+
+                    <div className="p-6 md:p-10 space-y-8">
+                      <ThreadSecuritySummary
+                        summary={selectedAnalysis}
+                        participantCount={selectedThread.participants.length}
+                      />
+
+                      <div className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-6 shadow-sm">
+                        <div className="flex items-center justify-between gap-4 mb-6">
+                          <div>
+                            <h3 className="text-xl font-black tracking-tight">Detailed Timeline</h3>
+                            <p className="text-sm text-[var(--muted-foreground)]">Email-by-email scoring with link verdicts</p>
+                          </div>
+                        </div>
+
+                        <SecurityTimeline summary={selectedAnalysis} autoExpandSuspicious={true} />
+                      </div>
+                    </div>
+                    
+                    <div className="p-8 text-center text-sm text-[var(--muted-foreground)] border-t border-[var(--border)]">
+                      End of analysis for thread {selectedThreadId}
+                    </div>
+                  </motion.div>
+                </div>
+              )}
+            </AnimatePresence>
           </div>
         </div>
       </div>
