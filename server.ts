@@ -14,14 +14,26 @@ import { connectDB, disconnectDB } from './src/lib/db.js';
 import * as dbService from './src/lib/dbService.js';
 import type { Thread } from './src/lib/types.js';
 
+import client from 'prom-client';
+
 dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// Initialize Prometheus metrics
+const register = new client.Registry();
+client.collectDefaultMetrics({ register });
+
 async function startServer() {
   const app = express();
   const PORT = process.env.PORT || 3000;
+
+  // Prometheus metrics endpoint
+  app.get('/metrics', async (req, res) => {
+    res.set('Content-Type', register.contentType);
+    res.end(await register.metrics());
+  });
 
   // Connect to MongoDB
   try {
