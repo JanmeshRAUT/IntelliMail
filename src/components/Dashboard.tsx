@@ -488,8 +488,9 @@ export default function Dashboard() {
                         </div>
                       </Link>
                     </motion.div>
-                  ))}
-                </AnimatePresence>
+                  );
+                })}
+              </AnimatePresence>
                 
                 {filteredThreads.length === 0 && !loading && (
                   <motion.div 
@@ -509,15 +510,7 @@ export default function Dashboard() {
               </div>
             )}
           </div>
-        ) : (
-          // Security Analysis View
-          <div className="p-8">
-            <SecurityDashboard 
-              threads={securityThreads}
-              onAnalyzeThreads={async (threadsToAnalyze) => analyzeMultipleThreadsWithMl(threadsToAnalyze)}
-            />
-          </div>
-        )}
+
       </div>
     </div>
   );
