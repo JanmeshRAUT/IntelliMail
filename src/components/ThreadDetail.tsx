@@ -4,6 +4,11 @@ import { ArrowLeft, ShieldAlert } from 'lucide-react';
 import { motion } from 'motion/react';
 import axios from 'axios';
 import { Email, getEmails, getThreads, Thread, ThreadAnalysis } from '../lib/localData';
+import { ThreadSecuritySummary } from './ThreadSecuritySummary';
+import { SecurityTimeline } from './SecurityTimeline';
+import { Shield, ExternalLink, X, AlertTriangle, ShieldCheck } from 'lucide-react';
+import { AnimatePresence } from 'motion/react';
+import type { ThreadSecuritySummary as ThreadSecuritySummaryType } from '../lib/types';
 
 export default function ThreadDetail() {
   const { id } = useParams<{ id: string }>();
@@ -13,6 +18,8 @@ export default function ThreadDetail() {
   const [analyzing, setAnalyzing] = useState(false);
   const [analysisProgress, setAnalysisProgress] = useState(0);
   const [analysisComplete, setAnalysisComplete] = useState(false);
+  const [fullSecurityAnalysis, setFullSecurityAnalysis] = useState<ThreadSecuritySummaryType | null>(null);
+  const [showFullReport, setShowFullReport] = useState(false);
 
   useEffect(() => {
     const hydrate = async () => {
@@ -59,6 +66,21 @@ export default function ThreadDetail() {
       // Call actual server API for analysis
       const response = await axios.post('/api/analyze', { emails: emailsToAnalyze });
       const analysis = response.data as ThreadAnalysis;
+
+      // Also get the full security analysis for the report
+      const securityResponse = await axios.post('/api/security/analyze-thread', { 
+        thread: {
+          threadId: currentThread?.id || '',
+          emails: emailsToAnalyze.map(e => ({
+            ...e,
+            to: [] // Security service expects to array, adding empty
+          }))
+        }
+      });
+      
+      if (securityResponse.data.success) {
+        setFullSecurityAnalysis(securityResponse.data.data);
+      }
 
       setAnalysisProgress(75);
       await new Promise(resolve => setTimeout(resolve, 200));
@@ -230,259 +252,155 @@ export default function ThreadDetail() {
         </div>
 
         <aside className="space-y-8">
-          <div className="bg-[var(--card)] border border-[var(--border)] p-10 rounded-[2.5rem] space-y-10 sticky top-8 shadow-[0_20px_50px_rgba(0,0,0,0.05)] transition-all duration-300">
-            <header className="space-y-2">
+          <div className="bg-[var(--card)] border border-[var(--border)] p-10 rounded-[2.5rem] space-y-10 sticky top-8 shadow-[0_20px_50px_rgba(0,0,0,0.05)] transition-all duration-300 overflow-hidden relative">
+            <header className="space-y-2 relative z-10">
               <div className="flex items-center gap-3 text-red-600 dark:text-red-400">
                 <div className="p-2.5 bg-red-600/10 rounded-[1rem]">
-                  <ShieldAlert className="w-5 h-5 fill-current" />
+                  <Shield className="w-5 h-5" />
                 </div>
-                <h2 className="font-black uppercase tracking-[0.2em] text-[10px]">Security Report</h2>
+                <h2 className="font-black uppercase tracking-[0.2em] text-[10px]">Intelligence Summary</h2>
               </div>
             </header>
 
-            <div className="space-y-10">
-              {/* Overall Risk Assessment */}
-              <div className="space-y-4">
-                <div className="flex items-center justify-between border-b border-[var(--border)] pb-3">
-                  <h3 className="text-[10px] font-black text-[var(--muted-foreground)] uppercase tracking-widest">Overall Risk Assessment</h3>
-                </div>
-                <div className={cn(
-                  "p-5 rounded-[1.5rem] border-2 space-y-4",
-                  thread.analysis?.priority === 'High' 
-                    ? "bg-red-50/50 dark:bg-red-500/5 border-red-500/30 dark:border-red-500/30"
-                    : thread.analysis?.priority === 'Medium'
-                    ? "bg-amber-50/50 dark:bg-amber-500/5 border-amber-500/30 dark:border-amber-500/30"
-                    : "bg-green-50/50 dark:bg-green-500/5 border-green-500/30 dark:border-green-500/30"
-                )}>
-                  <div className="flex items-center gap-3">
-                    <div className={cn(
-                      "w-4 h-4 rounded-full",
-                      thread.analysis?.priority === 'High' ? "bg-red-500" :
-                      thread.analysis?.priority === 'Medium' ? "bg-amber-500" : "bg-green-500"
-                    )} />
-                    <span className="text-lg font-black tracking-tight">{thread.analysis?.priority || 'Low'} Risk</span>
-                  </div>
-                  <p className="text-xs text-[var(--muted-foreground)] font-semibold opacity-80">
-                    {thread.analysis?.threats && thread.analysis.threats.length > 0 
-                      ? `${thread.analysis.threats.length} security threat${thread.analysis.threats.length !== 1 ? 's' : ''} identified - Immediate review recommended`
-                      : 'All security checks passed - Safe to interact'}
-                  </p>
-                  <div className="pt-3 border-t border-[var(--border)] space-y-2 text-xs">
-                    <div className="flex justify-between">
-                      <span className="text-[var(--muted-foreground)]">Threat Count:</span>
-                      <span className="font-bold">{thread.analysis?.threats?.length || 0}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-[var(--muted-foreground)]">Assessment Date:</span>
-                      <span className="font-bold">{new Date().toLocaleDateString()}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Threat Classification */}
-              {thread.analysis?.threats && thread.analysis.threats.length > 0 && (
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between border-b border-[var(--border)] pb-3">
-                    <h3 className="text-[10px] font-black text-[var(--muted-foreground)] uppercase tracking-widest">Threat Classification</h3>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="p-3 bg-red-50/50 dark:bg-red-500/5 rounded-lg border border-red-200/30 dark:border-red-500/20">
-                      <p className="text-[10px] font-bold text-red-700 dark:text-red-300 uppercase">Phishing Attempts</p>
-                      <p className="text-lg font-black text-red-600 dark:text-red-400 mt-2">
-                        {thread.analysis.threats.filter(t => 
-                          t.toLowerCase().includes('verify') || 
-                          t.toLowerCase().includes('confirm') ||
-                          t.toLowerCase().includes('click')
-                        ).length}
-                      </p>
-                    </div>
-                    <div className="p-3 bg-orange-50/50 dark:bg-orange-500/5 rounded-lg border border-orange-200/30 dark:border-orange-500/20">
-                      <p className="text-[10px] font-bold text-orange-700 dark:text-orange-300 uppercase">Malicious Links</p>
-                      <p className="text-lg font-black text-orange-600 dark:text-orange-400 mt-2">
-                        {thread.analysis.threats.filter(t => 
-                          t.toLowerCase().includes('link') || 
-                          t.toLowerCase().includes('url')
-                        ).length}
-                      </p>
-                    </div>
-                    <div className="p-3 bg-amber-50/50 dark:bg-amber-500/5 rounded-lg border border-amber-200/30 dark:border-amber-500/20">
-                      <p className="text-[10px] font-bold text-amber-700 dark:text-amber-300 uppercase">Social Engineering</p>
-                      <p className="text-lg font-black text-amber-600 dark:text-amber-400 mt-2">
-                        {thread.analysis.threats.filter(t => 
-                          t.toLowerCase().includes('urgent') || 
-                          t.toLowerCase().includes('action') ||
-                          t.toLowerCase().includes('password')
-                        ).length}
-                      </p>
-                    </div>
-                    <div className="p-3 bg-yellow-50/50 dark:bg-yellow-500/5 rounded-lg border border-yellow-200/30 dark:border-yellow-500/20">
-                      <p className="text-[10px] font-bold text-yellow-700 dark:text-yellow-300 uppercase">Domain Issues</p>
-                      <p className="text-lg font-black text-yellow-600 dark:text-yellow-400 mt-2">
-                        {thread.analysis.threats.filter(t => 
-                          t.toLowerCase().includes('domain') || 
-                          t.toLowerCase().includes('mismatch')
-                        ).length}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Detailed Threat Summary */}
-              {thread.analysis?.threats && thread.analysis.threats.length > 0 ? (
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between border-b border-[var(--border)] pb-3">
-                    <h3 className="text-[10px] font-black text-[var(--muted-foreground)] uppercase tracking-widest">Detected Threats (Detailed)</h3>
-                    <span className="px-2 py-1 bg-red-100 dark:bg-red-500/20 text-red-700 dark:text-red-300 rounded-lg text-[9px] font-bold">
-                      {thread.analysis.threats.length} FOUND
-                    </span>
-                  </div>
-                  <ul className="space-y-3">
-                    {thread.analysis.threats.map((threat, i) => {
-                      const threatType = threat.toLowerCase().includes('verify') || threat.toLowerCase().includes('confirm') ? 'phishing' :
-                                        threat.toLowerCase().includes('link') ? 'malware' :
-                                        threat.toLowerCase().includes('urgent') ? 'social-eng' : 'domain';
-                      const threatColor = threatType === 'phishing' ? 'red' : threatType === 'malware' ? 'orange' : threatType === 'social-eng' ? 'amber' : 'yellow';
-                      
-                      return (
-                        <li key={i} className={cn(
-                          "flex items-start gap-3 p-4 rounded-lg border space-y-2",
-                          `bg-${threatColor}-50/50 dark:bg-${threatColor}-500/5 border-${threatColor}-200/30 dark:border-${threatColor}-500/20`
-                        )}>
-                          <div className={cn(
-                            "mt-1 w-2 h-2 rounded-full shrink-0 shadow-lg",
-                            `bg-${threatColor}-500 shadow-${threatColor}-500/50`
-                          )} />
-                          <div className="flex-1">
-                            <p className={cn(
-                              "text-xs font-bold leading-relaxed",
-                              `text-${threatColor}-700 dark:text-${threatColor}-300`
-                            )}>
-                              {threat}
-                            </p>
-                            <p className="text-[10px] text-[var(--muted-foreground)] mt-1">
-                              Type: <span className="font-bold capitalize">{threatType.replace('-', ' ')}</span>
-                            </p>
-                          </div>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between border-b border-[var(--border)] pb-3">
-                    <h3 className="text-[10px] font-black text-[var(--muted-foreground)] uppercase tracking-widest">Threat Status</h3>
-                  </div>
-                  <div className="p-4 bg-green-50/50 dark:bg-green-500/5 rounded-lg border border-green-200/30 dark:border-green-500/20 flex items-start gap-3">
-                    <div className="w-2 h-2 bg-green-500 rounded-full mt-1.5 shrink-0" />
+            {fullSecurityAnalysis ? (
+              <div className="space-y-8 relative z-10">
+                {/* Concise View */}
+                <div className="space-y-6">
+                  <div className="flex items-center justify-between">
                     <div>
-                      <span className="text-xs font-bold text-green-700 dark:text-green-300 block">All Clear</span>
-                      <span className="text-[10px] text-green-600 dark:text-green-400">No security threats detected in this conversation</span>
+                      <p className="text-[10px] font-black text-[var(--muted-foreground)] uppercase tracking-widest mb-1">Threat Status</p>
+                      <h3 className={cn(
+                        "text-xl font-black tracking-tight",
+                        fullSecurityAnalysis.overallRiskLevel === 'High' ? "text-red-600" :
+                        fullSecurityAnalysis.overallRiskLevel === 'Medium' ? "text-yellow-600" : "text-green-600"
+                      )}>
+                        {fullSecurityAnalysis.overallRiskLevel} Risk
+                      </h3>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-[10px] font-black text-[var(--muted-foreground)] uppercase tracking-widest mb-1">Score</p>
+                      <p className="text-2xl font-black">{fullSecurityAnalysis.overallRisk}/100</p>
                     </div>
                   </div>
-                </div>
-              )}
 
-              {/* Email Analysis */}
-              <div className="space-y-4">
-                <div className="flex items-center justify-between border-b border-[var(--border)] pb-3">
-                  <h3 className="text-[10px] font-black text-[var(--muted-foreground)] uppercase tracking-widest">Email Analysis</h3>
-                  <span className="text-xs font-bold text-[var(--muted-foreground)]">{emails.length} email{emails.length !== 1 ? 's' : ''}</span>
+                  <div className="p-5 rounded-[1.5rem] bg-[var(--secondary)]/50 border border-[var(--border)] space-y-3">
+                    <p className="text-xs font-bold leading-relaxed">
+                      {fullSecurityAnalysis.threadThreatLevel}
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {fullSecurityAnalysis.attackType && (
+                        <span className="px-2 py-1 rounded-md bg-white dark:bg-black/20 text-[9px] font-black border border-black/5">
+                          {fullSecurityAnalysis.attackType}
+                        </span>
+                      )}
+                      {fullSecurityAnalysis.confidenceLabel && (
+                        <span className="px-2 py-1 rounded-md bg-white dark:bg-black/20 text-[9px] font-black border border-black/5">
+                          {fullSecurityAnalysis.confidenceLabel}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() => setShowFullReport(true)}
+                    className={cn(
+                      "w-full py-4 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] transition-all shadow-md hover:shadow-xl flex items-center justify-center gap-2",
+                      fullSecurityAnalysis.overallRiskLevel === 'High' ? "bg-red-600 text-white hover:bg-red-700" :
+                      fullSecurityAnalysis.overallRiskLevel === 'Medium' ? "bg-yellow-600 text-white hover:bg-yellow-700" :
+                      "bg-green-600 text-white hover:bg-green-700"
+                    )}
+                  >
+                    View Full Intelligence Report
+                    <ExternalLink className="w-3.5 h-3.5" />
+                  </button>
                 </div>
-                <div className="space-y-3">
-                  {emails.map((email, idx) => {
-                    const hasThreats = thread.analysis?.threats && thread.analysis.threats.length > 0;
-                    const senderDomain = email.from.split('@')[1] || 'unknown';
-                    
-                    return (
-                      <div key={email.id} className={cn(
-                        "p-4 rounded-lg border space-y-2",
-                        hasThreats && idx === 0 
-                          ? "bg-red-50/50 dark:bg-red-500/5 border-red-200/30 dark:border-red-500/20"
-                          : "bg-[var(--secondary)]/30 border-[var(--border)]"
-                      )}>
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <span className="font-bold text-[var(--foreground)] block text-xs">{email.from.split('@')[0]}</span>
-                            <span className="text-[10px] text-[var(--muted-foreground)]">@{senderDomain}</span>
-                          </div>
-                          <span className={cn(
-                            "px-2.5 py-1.5 rounded text-[9px] font-bold uppercase",
-                            hasThreats && idx === 0 
-                              ? "bg-red-100 dark:bg-red-500/20 text-red-700 dark:text-red-300"
-                              : "bg-green-100 dark:bg-green-500/20 text-green-700 dark:text-green-300"
-                          )}>
-                            {hasThreats && idx === 0 ? '⚠️ SUSPICIOUS' : '✓ SAFE'}
-                          </span>
-                        </div>
-                        <p className="text-[10px] text-[var(--muted-foreground)]">
-                          {new Date(email.timestamp).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                        </p>
-                      </div>
-                    );
-                  })}
+
+                {/* Quick Stats */}
+                <div className="grid grid-cols-2 gap-3 pt-6 border-t border-[var(--border)]">
+                  <div className="p-3 bg-[var(--secondary)]/30 rounded-xl border border-[var(--border)] text-center">
+                    <p className="text-lg font-black">{emails.length}</p>
+                    <p className="text-[9px] font-bold text-[var(--muted-foreground)] uppercase tracking-widest">Emails</p>
+                  </div>
+                  <div className="p-3 bg-[var(--secondary)]/30 rounded-xl border border-[var(--border)] text-center">
+                    <p className="text-lg font-black">
+                      {fullSecurityAnalysis.emails.reduce((sum, e) => sum + (e.linkAnalysis?.filter(l => l.phishingDetected).length || 0), 0)}
+                    </p>
+                    <p className="text-[9px] font-bold text-[var(--muted-foreground)] uppercase tracking-widest">Sus Links</p>
+                  </div>
                 </div>
               </div>
-
-              {/* Advanced Recommendations */}
-              <div className="space-y-4">
-                <div className="flex items-center justify-between border-b border-[var(--border)] pb-3">
-                  <h3 className="text-[10px] font-black text-[var(--muted-foreground)] uppercase tracking-widest">Security Actions</h3>
-                </div>
-                <ul className="space-y-2 text-xs text-[var(--foreground)] font-semibold">
-                  {thread.analysis?.priority === 'High' && (
-                    <>
-                      <li className="flex items-start gap-3 p-3 bg-red-50 dark:bg-red-500/10 rounded border border-red-200/30 dark:border-red-500/20">
-                        <span className="text-red-600 dark:text-red-400 font-bold mt-0.5">1.</span>
-                        <span>Immediately flag this email and do not interact with any content</span>
-                      </li>
-                      <li className="flex items-start gap-3 p-3 bg-red-50 dark:bg-red-500/10 rounded border border-red-200/30 dark:border-red-500/20">
-                        <span className="text-red-600 dark:text-red-400 font-bold mt-0.5">2.</span>
-                        <span>Forward to your organization's security/IT team immediately</span>
-                      </li>
-                      <li className="flex items-start gap-3 p-3 bg-red-50 dark:bg-red-500/10 rounded border border-red-200/30 dark:border-red-500/20">
-                        <span className="text-red-600 dark:text-red-400 font-bold mt-0.5">3.</span>
-                        <span>Do not download attachments or click any links</span>
-                      </li>
-                      <li className="flex items-start gap-3 p-3 bg-red-50 dark:bg-red-500/10 rounded border border-red-200/30 dark:border-red-500/20">
-                        <span className="text-red-600 dark:text-red-400 font-bold mt-0.5">4.</span>
-                        <span>If you clicked any links, change your passwords immediately</span>
-                      </li>
-                    </>
-                  )}
-                  {thread.analysis?.priority === 'Medium' && (
-                    <>
-                      <li className="flex items-start gap-3 p-3 bg-amber-50 dark:bg-amber-500/10 rounded border border-amber-200/30 dark:border-amber-500/20">
-                        <span className="text-amber-600 dark:text-amber-400 font-bold mt-0.5">1.</span>
-                        <span>Verify the sender's identity through a separate communication channel</span>
-                      </li>
-                      <li className="flex items-start gap-3 p-3 bg-amber-50 dark:bg-amber-500/10 rounded border border-amber-200/30 dark:border-amber-500/20">
-                        <span className="text-amber-600 dark:text-amber-400 font-bold mt-0.5">2.</span>
-                        <span>Be cautious before sharing personal or financial information</span>
-                      </li>
-                      <li className="flex items-start gap-3 p-3 bg-amber-50 dark:bg-amber-500/10 rounded border border-amber-200/30 dark:border-amber-500/20">
-                        <span className="text-amber-600 dark:text-amber-400 font-bold mt-0.5">3.</span>
-                        <span>Inspect email addresses and links before clicking</span>
-                      </li>
-                      <li className="flex items-start gap-3 p-3 bg-amber-50 dark:bg-amber-500/10 rounded border border-amber-200/30 dark:border-amber-500/20">
-                        <span className="text-amber-600 dark:text-amber-400 font-bold mt-0.5">4.</span>
-                        <span>Contact your security team if unsure about any requests</span>
-                      </li>
-                    </>
-                  )}
-                  {!thread.analysis?.priority || thread.analysis.priority === 'Low' && (
-                    <li className="flex items-start gap-3 p-3 bg-green-50 dark:bg-green-500/10 rounded border border-green-200/30 dark:border-green-500/20">
-                      <span className="text-green-600 dark:text-green-400 font-bold mt-0.5">✓</span>
-                      <span>This conversation is safe. Proceed with normal interaction</span>
-                    </li>
-                  )}
-                </ul>
+            ) : (
+              <div className="flex flex-col items-center justify-center py-10 space-y-4">
+                <ShieldCheck className="w-10 h-10 text-[var(--muted-foreground)] opacity-20" />
+                <p className="text-xs font-bold text-[var(--muted-foreground)]">Processing Security Intelligence...</p>
               </div>
-            </div>
+            )}
           </div>
         </aside>
+
+        {/* Full Report Modal */}
+        <AnimatePresence>
+          {showFullReport && fullSecurityAnalysis && (
+            <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 md:p-8">
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={() => setShowFullReport(false)}
+                className="absolute inset-0 bg-black/80 backdrop-blur-md"
+              />
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: 30 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 30 }}
+                className="relative w-full max-w-5xl max-h-[90vh] overflow-y-auto rounded-[3rem] bg-[var(--background)] border border-[var(--border)] shadow-2xl"
+              >
+                <div className="sticky top-0 z-20 flex items-center justify-between p-8 bg-[var(--background)]/90 backdrop-blur-xl border-b border-[var(--border)]">
+                  <div className="flex items-center gap-4">
+                    <div className="p-3 bg-primary-600/10 rounded-2xl">
+                      <Shield className="w-8 h-8 text-primary-600" />
+                    </div>
+                    <div>
+                      <h2 className="text-2xl font-black tracking-tight">Executive Security Report</h2>
+                      <p className="text-xs font-bold text-[var(--muted-foreground)] uppercase tracking-widest mt-0.5">Thread Intelligence Analysis v2.0</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setShowFullReport(false)}
+                    className="p-4 rounded-full hover:bg-[var(--secondary)] transition-all hover:rotate-90"
+                  >
+                    <X className="w-8 h-8" />
+                  </button>
+                </div>
+
+                <div className="p-8 md:p-12 space-y-12">
+                  <ThreadSecuritySummary
+                    summary={fullSecurityAnalysis}
+                    participantCount={new Set(emails.map(e => e.from)).size}
+                  />
+
+                  <div className="rounded-[2.5rem] border border-[var(--border)] bg-[var(--card)] p-10 shadow-sm space-y-8">
+                    <header>
+                      <h3 className="text-2xl font-black tracking-tight">Security Timeline</h3>
+                      <p className="text-sm font-medium text-[var(--muted-foreground)]">Step-by-step risk propagation analysis</p>
+                    </header>
+                    <SecurityTimeline summary={fullSecurityAnalysis} autoExpandSuspicious={true} />
+                  </div>
+                </div>
+
+                <div className="p-10 border-t border-[var(--border)] bg-[var(--secondary)]/30 flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-[var(--muted-foreground)] font-bold text-[10px] uppercase tracking-widest">
+                    <ShieldCheck className="w-4 h-4" />
+                    Verified by IntelliMail AI
+                  </div>
+                  <p className="text-[10px] font-bold text-[var(--muted-foreground)] uppercase tracking-widest">
+                    Report ID: {id?.substring(0, 8)}
+                  </p>
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
       </div>
     )}
     </div>
