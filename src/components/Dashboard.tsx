@@ -16,6 +16,7 @@ import {
   Thread,
   upsertEmails,
   upsertThreads,
+  getUser
 } from '../lib/localData';
 import { requestGoogleAccessToken } from '../lib/googleAuth';
 import { SecurityDashboard } from './SecurityDashboard';
@@ -29,6 +30,7 @@ export default function Dashboard() {
   const [refreshing, setRefreshing] = useState(false);
   const [filter, setFilter] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
+  const [activeTab, setActiveTab] = useState<'feed' | 'security'>('feed');
   const [syncError, setSyncError] = useState<string | null>(null);
   const [scanProgress, setScanProgress] = useState(0);
   const [scanStatus, setScanStatus] = useState('');
@@ -107,7 +109,11 @@ export default function Dashboard() {
           setScanStatus(`Analyzing thread ${analyzed + 1} of ${threadCount}...`);
 
           // Analyze thread
-          const analysisRes = await axios.post('/api/analyze', { emails: threadEmails });
+          const user = getUser();
+          const analysisRes = await axios.post('/api/analyze', { 
+            emails: threadEmails,
+            userId: user?.id 
+          });
           const analysis = analysisRes.data as ThreadAnalysis;
 
           nextThreads.push({
@@ -256,6 +262,32 @@ export default function Dashboard() {
               </div>
             </div>
 
+            {/* Tab Navigation */}
+            <div className="flex items-center gap-1 bg-[var(--secondary)] p-1 rounded-2xl w-fit border border-[var(--border)]">
+              <button
+                onClick={() => setActiveTab('feed')}
+                className={cn(
+                  "px-6 py-2.5 rounded-xl text-sm font-black transition-all",
+                  activeTab === 'feed' 
+                    ? "bg-[var(--card)] text-primary-600 shadow-sm" 
+                    : "text-[var(--muted-foreground)] hover:text-[var(--foreground)]"
+                )}
+              >
+                Intelligence Feed
+              </button>
+              <button
+                onClick={() => setActiveTab('security')}
+                className={cn(
+                  "px-6 py-2.5 rounded-xl text-sm font-black transition-all",
+                  activeTab === 'security' 
+                    ? "bg-[var(--card)] text-primary-600 shadow-sm" 
+                    : "text-[var(--muted-foreground)] hover:text-[var(--foreground)]"
+                )}
+              >
+                Security Dashboard
+              </button>
+            </div>
+
             {/* Scan Progress Bar */}
             {(refreshing || scanProgress > 0) && (
               <motion.div 
@@ -289,74 +321,78 @@ export default function Dashboard() {
               </motion.div>
             )}
 
-            {/* Threat Statistics */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className={cn(
-                "px-4 py-3 rounded-xl border text-center",
-                threatStats.critical > 0 
-                  ? "bg-red-50 dark:bg-red-500/5 border-red-500/30 dark:border-red-500/30"
-                  : "bg-[var(--secondary)] border-[var(--border)]"
-              )}>
-                <p className={cn(
-                  "text-2xl font-black",
-                  threatStats.critical > 0 ? "text-red-600 dark:text-red-400" : "text-[var(--muted-foreground)]"
-                )}>{threatStats.critical}</p>
-                <p className="text-[10px] font-bold text-[var(--muted-foreground)] uppercase tracking-widest">Critical</p>
-              </div>
-              <div className={cn(
-                "px-4 py-3 rounded-xl border text-center",
-                threatStats.high > threatStats.critical
-                  ? "bg-orange-50 dark:bg-orange-500/5 border-orange-500/30 dark:border-orange-500/30"
-                  : "bg-[var(--secondary)] border-[var(--border)]"
-              )}>
-                <p className={cn(
-                  "text-2xl font-black",
-                  threatStats.high > threatStats.critical ? "text-orange-600 dark:text-orange-400" : "text-[var(--muted-foreground)]"
-                )}>{threatStats.high - threatStats.critical}</p>
-                <p className="text-[10px] font-bold text-[var(--muted-foreground)] uppercase tracking-widest">High</p>
-              </div>
-              <div className="px-4 py-3 rounded-xl border bg-[var(--secondary)] border-[var(--border)] text-center">
-                <p className="text-2xl font-black text-[var(--muted-foreground)]">{threatStats.medium}</p>
-                <p className="text-[10px] font-bold text-[var(--muted-foreground)] uppercase tracking-widest">Medium</p>
-              </div>
-              <div className="px-4 py-3 rounded-xl border bg-[var(--secondary)] border-[var(--border)] text-center">
-                <p className="text-2xl font-black text-[var(--muted-foreground)]">{threatStats.withThreats}</p>
-                <p className="text-[10px] font-bold text-[var(--muted-foreground)] uppercase tracking-widest">With Threats</p>
-              </div>
             </div>
 
-            {/* Search & Filters */}
-            <div className="flex flex-col md:flex-row gap-6">
-              <div className="relative flex-1 group">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[var(--muted-foreground)] transition-colors group-focus-within:text-primary-500" />
-                <input 
-                  type="text" 
-                  placeholder="Search threats by email subject or sender..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-12 pr-4 py-3.5 bg-[var(--background)] text-[var(--foreground)] border border-[var(--border)] rounded-2xl focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500 outline-none transition-all shadow-sm font-medium placeholder:text-[var(--muted-foreground)]/50"
-                />
+            {activeTab === 'feed' && (
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className={cn(
+                  "px-4 py-3 rounded-xl border text-center",
+                  threatStats.critical > 0 
+                    ? "bg-red-50 dark:bg-red-500/5 border-red-500/30 dark:border-red-500/30"
+                    : "bg-[var(--secondary)] border-[var(--border)]"
+                )}>
+                  <p className={cn(
+                    "text-2xl font-black",
+                    threatStats.critical > 0 ? "text-red-600 dark:text-red-400" : "text-[var(--muted-foreground)]"
+                  )}>{threatStats.critical}</p>
+                  <p className="text-[10px] font-bold text-[var(--muted-foreground)] uppercase tracking-widest">Critical</p>
+                </div>
+                <div className={cn(
+                  "px-4 py-3 rounded-xl border text-center",
+                  threatStats.high > threatStats.critical
+                    ? "bg-orange-50 dark:bg-orange-500/5 border-orange-500/30 dark:border-orange-500/30"
+                    : "bg-[var(--secondary)] border-[var(--border)]"
+                )}>
+                  <p className={cn(
+                    "text-2xl font-black",
+                    threatStats.high > threatStats.critical ? "text-orange-600 dark:text-orange-400" : "text-[var(--muted-foreground)]"
+                  )}>{threatStats.high - threatStats.critical}</p>
+                  <p className="text-[10px] font-bold text-[var(--muted-foreground)] uppercase tracking-widest">High</p>
+                </div>
+                <div className="px-4 py-3 rounded-xl border bg-[var(--secondary)] border-[var(--border)] text-center">
+                  <p className="text-2xl font-black text-[var(--muted-foreground)]">{threatStats.medium}</p>
+                  <p className="text-[10px] font-bold text-[var(--muted-foreground)] uppercase tracking-widest">Medium</p>
+                </div>
+                <div className="px-4 py-3 rounded-xl border bg-[var(--secondary)] border-[var(--border)] text-center">
+                  <p className="text-2xl font-black text-[var(--muted-foreground)]">{threatStats.withThreats}</p>
+                  <p className="text-[10px] font-bold text-[var(--muted-foreground)] uppercase tracking-widest">With Threats</p>
+                </div>
               </div>
-              <div className="flex gap-2 overflow-x-auto pb-2 md:pb-0 scrollbar-hide">
-                {['All', 'High', 'Medium', 'Low'].map((f) => (
-                  <button
-                    key={f}
-                    onClick={() => setFilter(f === 'All' ? 'All' : f)}
-                    className={cn(
-                      "px-5 py-2.5 rounded-2xl text-sm font-bold transition-all whitespace-nowrap border-2",
-                      filter === f 
-                      ? f === 'All' ? "bg-primary-600 text-white border-primary-600 shadow-lg shadow-primary-500/20" :
-                        f === 'High' ? "bg-red-600 text-white border-red-600 shadow-lg shadow-red-500/20" :
-                        f === 'Medium' ? "bg-amber-600 text-white border-amber-600 shadow-lg shadow-amber-500/20" :
-                        "bg-green-600 text-white border-green-600 shadow-lg shadow-green-500/20"
-                      : "bg-[var(--background)] text-[var(--muted-foreground)] border-[var(--border)] hover:border-primary-300"
-                    )}
-                  >
-                    {f}
-                  </button>
-                ))}
+            )}
+
+            {activeTab === 'feed' && (
+              <div className="flex flex-col md:flex-row gap-6">
+                <div className="relative flex-1 group">
+                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[var(--muted-foreground)] transition-colors group-focus-within:text-primary-500" />
+                  <input 
+                    type="text" 
+                    placeholder="Search threats by email subject or sender..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full pl-12 pr-4 py-3.5 bg-[var(--background)] text-[var(--foreground)] border border-[var(--border)] rounded-2xl focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500 outline-none transition-all shadow-sm font-medium placeholder:text-[var(--muted-foreground)]/50"
+                  />
+                </div>
+                <div className="flex gap-2 overflow-x-auto pb-2 md:pb-0 scrollbar-hide">
+                  {['All', 'High', 'Medium', 'Low'].map((f) => (
+                    <button
+                      key={f}
+                      onClick={() => setFilter(f === 'All' ? 'All' : f)}
+                      className={cn(
+                        "px-5 py-2.5 rounded-2xl text-sm font-bold transition-all whitespace-nowrap border-2",
+                        filter === f 
+                        ? f === 'All' ? "bg-primary-600 text-white border-primary-600 shadow-lg shadow-primary-500/20" :
+                          f === 'High' ? "bg-red-600 text-white border-red-600 shadow-lg shadow-red-500/20" :
+                          f === 'Medium' ? "bg-amber-600 text-white border-amber-600 shadow-lg shadow-amber-500/20" :
+                          "bg-green-600 text-white border-green-600 shadow-lg shadow-green-500/20"
+                        : "bg-[var(--background)] text-[var(--muted-foreground)] border-[var(--border)] hover:border-primary-300"
+                      )}
+                    >
+                      {f}
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
           </div>
         </div>
       </div>

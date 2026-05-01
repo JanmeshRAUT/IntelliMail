@@ -3,7 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { ArrowLeft, ShieldAlert } from 'lucide-react';
 import { motion } from 'motion/react';
 import axios from 'axios';
-import { Email, getEmails, getThreads, Thread, ThreadAnalysis } from '../lib/localData';
+import { Email, getEmails, getThreads, Thread, ThreadAnalysis, getUser } from '../lib/localData';
 import { ThreadSecuritySummary } from './ThreadSecuritySummary';
 import { SecurityTimeline } from './SecurityTimeline';
 import { Shield, ExternalLink, X, AlertTriangle, ShieldCheck } from 'lucide-react';
@@ -64,11 +64,16 @@ export default function ThreadDetail() {
 
       setAnalysisProgress(50);
       // Call actual server API for analysis
-      const response = await axios.post('/api/analyze', { emails: emailsToAnalyze });
+      const user = getUser();
+      const response = await axios.post('/api/analyze', { 
+        emails: emailsToAnalyze,
+        userId: user?.id 
+      });
       const analysis = response.data as ThreadAnalysis;
 
       // Also get the full security analysis for the report
       const securityResponse = await axios.post('/api/security/analyze-thread', { 
+        userId: user?.id,
         thread: {
           threadId: currentThread?.id || '',
           emails: emailsToAnalyze.map(e => ({
