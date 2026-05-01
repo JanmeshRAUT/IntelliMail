@@ -4,6 +4,8 @@ import {
   ThreadAnalysis,
   AnalysisHistory,
   ThreatLog,
+  AnalyzedUrl,
+  FlaggedContent,
   type IThreadAnalysis,
   type IThreatLog,
 } from './dbModels.js';
@@ -159,6 +161,56 @@ export async function logThreat(
     return threat;
   } catch (error) {
     console.error('Error in logThreat:', error);
+    throw error;
+  }
+}
+
+export async function saveAnalyzedUrl(
+  userId: string,
+  url: string,
+  domain: string,
+  isMalicious: boolean,
+  threatType?: string,
+  confidence?: number
+) {
+  try {
+    const analyzedUrl = new AnalyzedUrl({
+      userId,
+      url,
+      domain,
+      isMalicious,
+      threatType,
+      confidence: confidence || 0,
+    });
+    await analyzedUrl.save();
+    console.log(`✓ Saved URL analysis: ${url} (Malicious: ${isMalicious})`);
+    return analyzedUrl;
+  } catch (error) {
+    console.error('Error in saveAnalyzedUrl:', error);
+    throw error;
+  }
+}
+
+export async function logFlaggedContent(
+  userId: string,
+  emailId: string,
+  contentSnippet: string,
+  threatType: string,
+  severity: 'Low' | 'Medium' | 'High'
+) {
+  try {
+    const flagged = new FlaggedContent({
+      userId,
+      emailId,
+      contentSnippet,
+      threatType,
+      severity,
+    });
+    await flagged.save();
+    console.log(`✓ Logged flagged content from email: ${emailId}`);
+    return flagged;
+  } catch (error) {
+    console.error('Error in logFlaggedContent:', error);
     throw error;
   }
 }

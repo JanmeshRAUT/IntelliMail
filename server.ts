@@ -241,18 +241,47 @@ async function startServer() {
         try {
           await dbService.saveThreadAnalysis(userId, thread.threadId, analysis);
           
-          // Log high-risk threats
-          if (analysis.overallRiskLevel === 'High') {
-            const firstEmail = thread.emails[0];
-            await dbService.logThreat(
-              userId,
-              thread.threadId,
-              firstEmail.id,
-              analysis.attackType || 'Unknown',
-              'High',
-              analysis.emails[0]?.explanation || '',
-              firstEmail.from
-            );
+          // Detailed logging for URLs and flagged content
+          for (const emailAnalysis of analysis.emails) {
+            // 1. Log every URL analyzed
+            if (emailAnalysis.linkAnalysis && emailAnalysis.linkAnalysis.length > 0) {
+              for (const link of emailAnalysis.linkAnalysis) {
+                await dbService.saveAnalyzedUrl(
+                  userId,
+                  link.url,
+                  link.domain,
+                  link.phishingDetected,
+                  link.phishingDetected ? 'Phishing' : undefined,
+                  link.confidence
+                );
+              }
+            }
+
+            // 2. Log Flagged Content
+            if (emailAnalysis.riskLevel !== 'Low') {
+              await dbService.logFlaggedContent(
+                userId,
+                emailAnalysis.emailId,
+                emailAnalysis.explanation,
+                emailAnalysis.attackType || 'Suspicious Content',
+                emailAnalysis.riskLevel
+              );
+            }
+
+            // 3. Log threats for historical tracking
+            if (emailAnalysis.threats && emailAnalysis.threats.length > 0) {
+              for (const threat of emailAnalysis.threats) {
+                await dbService.logThreat(
+                  userId,
+                  thread.threadId,
+                  emailAnalysis.emailId,
+                  threat,
+                  emailAnalysis.riskLevel,
+                  `Analysis detected: ${threat}`,
+                  emailAnalysis.sender
+                );
+              }
+            }
           }
         } catch (dbError) {
           console.error('Database save error (non-blocking):', dbError);
@@ -287,6 +316,18 @@ async function startServer() {
         try {
           for (const analysis of analyses) {
             await dbService.saveThreadAnalysis(userId, analysis.threadId, analysis);
+            
+            // Log URLs and flagged content for batch results too
+            for (const emailAnalysis of analysis.emails) {
+              if (emailAnalysis.linkAnalysis && emailAnalysis.linkAnalysis.length > 0) {
+                for (const link of emailAnalysis.linkAnalysis) {
+                  await dbService.saveAnalyzedUrl(userId, link.url, link.domain, link.phishingDetected, link.phishingDetected ? 'Phishing' : undefined, link.confidence);
+                }
+              }
+              if (emailAnalysis.riskLevel !== 'Low') {
+                await dbService.logFlaggedContent(userId, emailAnalysis.emailId, emailAnalysis.explanation, emailAnalysis.attackType || 'Suspicious Content', emailAnalysis.riskLevel);
+              }
+            }
           }
         } catch (dbError) {
           console.error('Batch database save error (non-blocking):', dbError);
