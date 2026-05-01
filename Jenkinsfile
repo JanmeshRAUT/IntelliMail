@@ -65,6 +65,7 @@ pipeline {
                         docker run -d ^
                         --name email-detection-container ^
                         -p 5000:3000 ^
+                        -e NODE_ENV=production ^
                         --env-file %ENV_FILE% ^
                         ${env.IMAGE_NAME}:${env.VERSION} || exit /b
                         """
