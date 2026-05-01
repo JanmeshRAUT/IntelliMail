@@ -1,16 +1,13 @@
-import 'dotenv/config';
 import express from 'express';
 import { createServer as createViteServer } from 'vite';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { google } from 'googleapis';
-import client from 'prom-client';
-import os from 'os';
-import { analyzeThreadEmailsWithMl, analyzeMultipleThreadsWithMl } from './src/lib/securityService.js';
+import dotenv from 'dotenv';
+import { analyzeThreadEmails, analyzeMultipleThreads } from './src/lib/securityService.js';
 import type { Thread } from './src/lib/types.js';
 
-console.log('ML_SERVICE_URL:', process.env.ML_SERVICE_URL);
-console.log('LSTM_SERVICE_URL:', process.env.LSTM_SERVICE_URL);
+dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -18,70 +15,6 @@ const __dirname = path.dirname(__filename);
 async function startServer() {
   const app = express();
   const PORT = process.env.PORT || 3000;
-
-  const register = new client.Registry();
-  register.setDefaultLabels({ app: 'intellmail' });
-  client.collectDefaultMetrics({ register, prefix: 'intellmail_' });
-
-  const httpRequestsTotal = new client.Counter({
-    name: 'intellmail_http_requests_total',
-    help: 'Total number of HTTP requests',
-    labelNames: ['method', 'route', 'status_code'],
-  });
-
-  const httpRequestDurationSeconds = new client.Histogram({
-    name: 'intellmail_http_request_duration_seconds',
-    help: 'HTTP request duration in seconds',
-    labelNames: ['method', 'route', 'status_code'],
-    buckets: [0.005, 0.01, 0.025, 0.05, 0.1, 0.3, 1, 2.5, 5, 10],
-  });
-
-  const httpRequestErrorsTotal = new client.Counter({
-    name: 'intellmail_http_request_errors_total',
-    help: 'Total number of HTTP error responses',
-    labelNames: ['method', 'route', 'status_code'],
-  });
-
-  register.registerMetric(httpRequestsTotal);
-  register.registerMetric(httpRequestDurationSeconds);
-  register.registerMetric(httpRequestErrorsTotal);
-
-  function durationInSeconds(start: [number, number]) {
-    const delta = process.hrtime(start);
-    return delta[0] + delta[1] / 1e9;
-  }
-
-  app.use((req, res, next) => {
-    if (req.path === '/metrics') return next();
-
-    const start = process.hrtime();
-    res.on('finish', () => {
-      const route = req.route?.path || req.path;
-      const labels = {
-        method: req.method,
-        route,
-        status_code: String(res.statusCode),
-      };
-
-      httpRequestsTotal.inc(labels);
-      httpRequestDurationSeconds.observe(labels, durationInSeconds(start));
-      if (res.statusCode >= 500) {
-        httpRequestErrorsTotal.inc(labels);
-      }
-    });
-
-    next();
-  });
-
-  app.get('/metrics', async (_req, res) => {
-    try {
-      res.set('Content-Type', register.contentType);
-      res.end(await register.metrics());
-    } catch (error) {
-      console.error('Metrics error:', error);
-      res.status(500).send('Unable to collect metrics');
-    }
-  });
 
   app.use(express.json({ limit: '50mb' }));
   app.use(express.urlencoded({ limit: '50mb', extended: true }));
@@ -113,9 +46,46 @@ async function startServer() {
     return `${sender} started "${subject}". Latest context: ${snippet}`;
   }
 
-  app.get('/health', (_req, res) => {
-    res.status(200).send('OK');
-  });
+  // Hugging Face API integration for threat detection
+  async function analyzeWithHuggingFace(emails: Array<{ subject?: string; body?: string; snippet?: string }>) {
+    try {
+      const text = emails
+        .map((email) => `${email.subject || ''} ${email.body || ''}`)
+        .join('\n');
+
+      const hfResponse = await fetch('https://api-inference.huggingface.co/models/JerryJR1705/ThreadDetection', {
+        headers: { Authorization: `Bearer ${process.env.HUGGINGFACE_API_KEY}` },
+        method: 'POST',
+        body: JSON.stringify({ inputs: text }),
+      });
+
+      if (!hfResponse.ok) {
+        console.warn('Hugging Face API error, falling back to local analysis');
+        return null;
+      }
+
+      const hfResult = await hfResponse.json();
+      return hfResult;
+    } catch (error) {
+      console.warn('Hugging Face analysis failed:', error);
+      return null;
+    }
+  }
+
+  // Local fallback threat detection (used when HF is unavailable)
+  function localThreatDetection(emails: Array<{ subject?: string; body?: string; snippet?: string }>) {
+    const allText = emails
+      .map((email: { subject?: string; body?: string; snippet?: string }) => `${email.subject || ''} ${email.body || ''} ${email.snippet || ''}`)
+      .join(' ')
+      .toLowerCase();
+
+    const threats = threatKeywords.filter((word) => allText.includes(word));
+    const category = classifyCategory(emails[0]?.subject || '', allText);
+    const sentiment = classifySentiment(allText);
+    const priority = threats.length > 0 ? 'High' : category === 'Work' ? 'Medium' : 'Low';
+
+    return { threats, category, sentiment, priority };
+  }
 
   // API Routes
   app.post('/api/analyze', async (req, res) => {
@@ -125,24 +95,43 @@ async function startServer() {
     }
 
     try {
-      const allText = emails
-        .map((email: { subject?: string; body?: string; snippet?: string }) => `${email.subject || ''} ${email.body || ''} ${email.snippet || ''}`)
-        .join(' ')
-        .toLowerCase();
+      // Try Hugging Face analysis first
+      const hfAnalysis = await analyzeWithHuggingFace(emails);
+      
+      let analysis;
+      if (hfAnalysis) {
+        // Use Hugging Face results
+        console.log('Using Hugging Face analysis');
+        const allText = emails
+          .map((email: { subject?: string; body?: string; snippet?: string }) => `${email.subject || ''} ${email.body || ''}`)
+          .join(' ')
+          .toLowerCase();
+        
+        // Extract threat information from HF response
+        const threats = hfAnalysis[0]?.label === 'phishing' ? ['Phishing detected by ML model'] : 
+                        hfAnalysis[0]?.label === 'spam' ? ['Spam detected by ML model'] :
+                        threatKeywords.filter((word) => allText.includes(word));
+        
+        analysis = {
+          category: classifyCategory(emails[0]?.subject || '', allText),
+          sentiment: classifySentiment(allText),
+          priority: threats.length > 0 ? 'High' : 'Medium',
+          threats,
+          summary: summarizeThread(emails),
+          source: 'huggingface',
+        };
+      } else {
+        // Fallback to local analysis
+        console.log('Using local analysis (Hugging Face unavailable)');
+        const localAnalysis = localThreatDetection(emails);
+        analysis = {
+          ...localAnalysis,
+          summary: summarizeThread(emails),
+          source: 'local',
+        };
+      }
 
-      const threats = threatKeywords.filter((word) => allText.includes(word));
-      const category = classifyCategory(emails[0]?.subject || '', allText);
-      const sentiment = classifySentiment(allText);
-      const priority = threats.length > 0 ? 'High' : category === 'Work' ? 'Medium' : 'Low';
-      const summary = summarizeThread(emails);
-
-      res.json({
-        category,
-        sentiment,
-        priority,
-        threats,
-        summary,
-      });
+      res.json(analysis);
     } catch (error) {
       console.error('Analysis error:', error);
       res.status(500).json({ error: 'Thread analysis failed' });
@@ -197,7 +186,7 @@ async function startServer() {
   });
 
   // Security Analysis Endpoint - Analyze emails in a thread for threats
-  app.post('/api/security/analyze-thread', async (req, res) => {
+  app.post('/api/security/analyze-thread', (req, res) => {
     const { thread } = req.body;
 
     // Validate input
@@ -225,7 +214,7 @@ async function startServer() {
 
     try {
       // Analyze the thread
-      const analysis = await analyzeThreadEmailsWithMl(thread as Thread);
+      const analysis = analyzeThreadEmails(thread as Thread);
 
       res.json({
         success: true,
@@ -239,7 +228,7 @@ async function startServer() {
   });
 
   // Batch Security Analysis Endpoint - Analyze multiple threads
-  app.post('/api/security/analyze-threads', async (req, res) => {
+  app.post('/api/security/analyze-threads', (req, res) => {
     const { threads } = req.body;
 
     if (!Array.isArray(threads)) {
@@ -247,7 +236,7 @@ async function startServer() {
     }
 
     try {
-      const analyses = await analyzeMultipleThreadsWithMl(threads as Thread[]);
+      const analyses = analyzeMultipleThreads(threads as Thread[]);
 
       res.json({
         success: true,
@@ -278,23 +267,8 @@ async function startServer() {
     });
   }
 
-  function getLocalIP() {
-    const interfaces = os.networkInterfaces();
-    for (const iface of Object.values(interfaces)) {
-      for (const config of iface) {
-        if (config.family === 'IPv4' && !config.internal) {
-          return config.address;
-        }
-      }
-    }
-  }
-
-  const ip = getLocalIP();
-
-  app.listen(Number(PORT), '0.0.0.0', () => {
-    console.log(`Server running on:`);
-    console.log(`Local:   http://localhost:${PORT}`);
-    console.log(`Network: http://${ip}:${PORT}`);
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(`Server running on http://localhost:${PORT}`);
   });
 }
 

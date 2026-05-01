@@ -1,67 +1,21 @@
-# Dependencies
 node_modules/
-.venv/
-venv/
-ENV/
-env/
-
-# Build & Distribution
 build/
 dist/
 coverage/
-*.egg-info/
-
-# OS & IDE
 .DS_Store
-Thumbs.db
-.vscode/
-.idea/
-*.swp
-*.swo
-
-# Logs
 *.log
-logs/
-
-# Environment Variables & Secrets
 .env*
 !.env.example
-*.env
-.env.local
 
-# HuggingFace Models & Large ML Files
-*.pkl
-*.h5
-*.onnx
-*.pt
-*.pth
-*.bin
-*.keras
-ml-model/artifacts/models/
-ml-model/artifacts/graphs/
-ml-model/artifacts/
+# ML datasets (local only)
+ml-model/data/*.csv
 
-# Datasets
-ml-model/data/
-ml-model/*.csv
-data/
-datasets/
-*.zip
-
-# Python Cache
+# Python
+.venv/
 __pycache__/
 *.pyc
 *.pyo
-*.egg
-.pytest_cache/
+*.egg-info/
 
-# Node.js
-npm-debug.log
-yarn-error.log
-package-lock.json
-
-# Temporary Files
-*.tmp
-*.temp
-.cache/
-tmp/
+# VS Code
+.vscode/

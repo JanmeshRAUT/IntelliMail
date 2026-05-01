@@ -91,28 +91,8 @@ export const EmailCard: React.FC<EmailCardProps> = ({
               <span className="text-lg">{attackDisplay.icon}</span>
               <span>{attackDisplay.label}</span>
               <span className="ml-auto text-xs opacity-75">
-                {email.confidenceLabel || `${attack.confidence} Confidence`}
+                {attack.confidence} Confidence
               </span>
-            </div>
-          )}
-
-          {!isSuspicious && email.confidenceLabel && (
-            <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 font-semibold text-emerald-800 flex items-center gap-2">
-              <span className="text-lg">🛡️</span>
-              <span>{email.confidenceLabel}</span>
-              {email.bulkEmailCandidate && (
-                <span className="ml-auto rounded-full bg-emerald-100 px-2 py-1 text-[11px] font-bold uppercase tracking-wide text-emerald-700">
-                  Marketing / Bulk Email
-                </span>
-              )}
-            </div>
-          )}
-
-          {(typeof email.lstmConfidence === 'number' || email.mlExplanation) && (
-            <div className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-900">
-              <span className="font-semibold">LSTM confidence:</span>{' '}
-              {typeof email.lstmConfidence === 'number' ? email.lstmConfidence.toFixed(2) : 'Unavailable'}
-              {email.mlExplanation ? <span className="ml-2">• {email.mlExplanation}</span> : null}
             </div>
           )}
 
@@ -157,13 +137,9 @@ export const EmailCard: React.FC<EmailCardProps> = ({
             explanation={email.explanation}
             threats={email.threats}
             links={email.links}
-            linkAnalysis={email.linkAnalysis}
             newSender={email.newSender}
             toneChanged={email.toneChanged}
             riskLevel={email.riskLevel}
-            lstmConfidence={email.lstmConfidence}
-            lstmBand={email.lstmBand}
-            mlExplanation={email.mlExplanation}
             isExpanded={explanationExpanded}
             onToggle={() => setExplanationExpanded(!explanationExpanded)}
           />
@@ -174,21 +150,14 @@ export const EmailCard: React.FC<EmailCardProps> = ({
             <div className="grid grid-cols-2 gap-2">
               {[
                 { label: 'Threat Keywords', value: email.threats.length, active: email.threats.length > 0 },
-                { label: 'Flagged Links', value: email.linkAnalysis?.filter((link) => link.phishingDetected).length ?? email.links.length, active: (email.linkAnalysis?.filter((link) => link.phishingDetected).length ?? email.links.length) > 0 },
+                { label: 'Suspicious Links', value: email.links.length, active: email.links.length > 0 },
                 { label: 'New Sender', value: email.newSender ? 'Yes' : 'No', active: email.newSender },
                 { label: 'Tone Changed', value: email.toneChanged ? 'Yes' : 'No', active: email.toneChanged },
-                { label: 'Trusted Domain', value: email.trustedDomain ? 'Yes' : 'No', active: false, positive: email.trustedDomain },
-                { label: 'Bulk Email', value: email.bulkEmailCandidate ? 'Yes' : 'No', active: false, positive: email.bulkEmailCandidate },
-                { label: 'LSTM Band', value: email.lstmBand || 'N/A', active: email.lstmBand === 'strong-phishing' || email.lstmBand === 'suspicious' },
               ].map((factor, idx) => (
                 <div
                   key={idx}
                   className={`rounded px-2 py-1 text-xs ${
-                    factor.active
-                      ? 'bg-red-100 text-red-800'
-                      : factor.positive
-                        ? 'bg-emerald-100 text-emerald-800'
-                        : 'bg-gray-200 text-gray-700'
+                    factor.active ? 'bg-red-100 text-red-800' : 'bg-gray-200 text-gray-700'
                   }`}
                 >
                   <span className="font-semibold">{factor.label}:</span> {factor.value}

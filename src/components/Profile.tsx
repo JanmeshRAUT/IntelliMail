@@ -7,9 +7,6 @@ export default function Profile() {
   const [user, setLocalUser] = useState<AppUser | null>(null);
   const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');
-  const [jobTitle, setJobTitle] = useState('');
-  const [company, setCompany] = useState('');
-  const [phone, setPhone] = useState('');
   const [isEditing, setIsEditing] = useState(false);
   const navigate = useNavigate();
 
@@ -19,43 +16,16 @@ export default function Profile() {
       setLocalUser(current);
       setDisplayName(current.name);
       setEmail(current.email);
-      setJobTitle(current.jobTitle ?? '');
-      setCompany(current.company ?? '');
-      setPhone(current.phone ?? '');
     }
   }, []);
 
-  const validateEmail = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
-
-  const requiredFields = [displayName, email];
-  const optionalFields = [jobTitle, company, phone];
-  const profileScore = Math.round(((requiredFields.filter(Boolean).length + optionalFields.filter(Boolean).length) / (requiredFields.length + optionalFields.length)) * 100);
-
   const handleSave = () => {
     if (!user) return;
-
-    const trimmedName = displayName.trim();
-    const trimmedEmail = email.trim();
-
-    if (!trimmedName) {
-      alert('Please enter your name.');
-      return;
-    }
-
-    if (!validateEmail(trimmedEmail)) {
-      alert('Invalid email format.');
-      return;
-    }
-
     const updatedUser: AppUser = {
       ...user,
-      name: trimmedName,
-      email: trimmedEmail,
-      jobTitle: jobTitle.trim(),
-      company: company.trim(),
-      phone: phone.trim(),
+      name: displayName.trim() || user.name,
+      email,
     };
-
     setUser(updatedUser);
     setLocalUser(updatedUser);
     setIsEditing(false);
@@ -79,18 +49,12 @@ export default function Profile() {
     <div className="p-8 max-w-4xl mx-auto space-y-8 text-[var(--foreground)] transition-colors duration-300">
       <header className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="p-3 bg-primary-100 dark:bg-primary-900 rounded-full">
-            <User className="w-6 h-6 text-primary-600 dark:text-primary-400" />
+          <div className="p-2 bg-primary-100 dark:bg-primary-900 rounded-lg">
+            <User className="w-5 h-5 text-primary-600 dark:text-primary-400" />
           </div>
           <div>
-            <h1 className="text-3xl font-bold">Professional Profile</h1>
-            <p className="text-sm text-[var(--muted-foreground)]">Keep your contact and organizational data accurate.</p>
-            <div className="mt-2 w-64">
-              <div className="h-2 bg-slate-200 rounded-full overflow-hidden">
-                <div className="h-full bg-primary-600" style={{ width: `${profileScore}%` }} />
-              </div>
-              <p className="text-xs text-[var(--muted-foreground)] mt-1">{profileScore}% complete</p>
-            </div>
+            <h1 className="text-3xl font-bold">Profile</h1>
+            <p className="text-sm text-[var(--muted-foreground)]">Update your account information and preferences.</p>
           </div>
         </div>
         <button
@@ -103,15 +67,15 @@ export default function Profile() {
       </header>
 
       <div className="bg-[var(--card)] border border-[var(--border)] rounded-2xl p-6 shadow-sm space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="flex flex-col md:flex-row gap-4 md:items-center md:justify-between">
           <div>
-            <p className="text-sm text-[var(--muted-foreground)]">Full Name</p>
+            <p className="text-sm text-[var(--muted-foreground)]">Name</p>
             <input
               type="text"
               value={displayName}
               onChange={(e) => setDisplayName(e.target.value)}
               disabled={!isEditing}
-              className="mt-1 w-full px-3 py-2 border rounded-lg bg-[var(--background)] border-[var(--border)] focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all"
+              className="mt-1 w-full md:w-80 px-3 py-2 border rounded-lg bg-[var(--background)] border-[var(--border)] focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all"
             />
           </div>
           <div>
@@ -121,37 +85,7 @@ export default function Profile() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               disabled={!isEditing}
-              className="mt-1 w-full px-3 py-2 border rounded-lg bg-[var(--background)] border-[var(--border)] focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all"
-            />
-          </div>
-          <div>
-            <p className="text-sm text-[var(--muted-foreground)]">Job Title</p>
-            <input
-              type="text"
-              value={jobTitle}
-              onChange={(e) => setJobTitle(e.target.value)}
-              disabled={!isEditing}
-              className="mt-1 w-full px-3 py-2 border rounded-lg bg-[var(--background)] border-[var(--border)] focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all"
-            />
-          </div>
-          <div>
-            <p className="text-sm text-[var(--muted-foreground)]">Company</p>
-            <input
-              type="text"
-              value={company}
-              onChange={(e) => setCompany(e.target.value)}
-              disabled={!isEditing}
-              className="mt-1 w-full px-3 py-2 border rounded-lg bg-[var(--background)] border-[var(--border)] focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all"
-            />
-          </div>
-          <div className="md:col-span-2">
-            <p className="text-sm text-[var(--muted-foreground)]">Phone</p>
-            <input
-              type="tel"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              disabled={!isEditing}
-              className="mt-1 w-full px-3 py-2 border rounded-lg bg-[var(--background)] border-[var(--border)] focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all"
+              className="mt-1 w-full md:w-80 px-3 py-2 border rounded-lg bg-[var(--background)] border-[var(--border)] focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all"
             />
           </div>
         </div>

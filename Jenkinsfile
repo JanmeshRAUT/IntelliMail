@@ -1,8 +1,12 @@
 pipeline {
     agent any
 
+    options {
+        timestamps()
+    }
+
     environment {
-        IMAGE_NAME = "email-detection"
+        IMAGE_NAME = "email-detection-2"
         DOCKER_CONTENT_TRUST = "0"
     }
 
@@ -17,7 +21,6 @@ pipeline {
         stage('Set Version') {
             steps {
                 script {
-                    // Version format
                     env.VERSION = "v1.0.${env.BUILD_NUMBER}"
                     env.IMAGE_TAG = "${env.BRANCH_NAME}-${env.BUILD_NUMBER}".toLowerCase()
 
@@ -27,47 +30,40 @@ pipeline {
             }
         }
 
-        stage('Build Docker Image') {
+        stage('Build Docker Image (Main Only)') {
+            when { branch 'main' }
             steps {
                 script {
                     bat """
-                    docker build -t ${env.IMAGE_NAME}:${env.IMAGE_TAG} .
-                    docker tag ${env.IMAGE_NAME}:${env.IMAGE_TAG} ${env.IMAGE_NAME}:${env.VERSION}
+                    docker build -f docker/frontend.Dockerfile -t ${env.IMAGE_NAME}:${env.IMAGE_TAG} . || exit /b
+                    docker tag ${env.IMAGE_NAME}:${env.IMAGE_TAG} ${env.IMAGE_NAME}:${env.VERSION} || exit /b
                     """
                 }
             }
         }
 
         stage('Tag Latest (Main Only)') {
-            when {
-                branch 'main'
-            }
+            when { branch 'main' }
             steps {
-                script {
-                    bat """
-                    docker tag ${env.IMAGE_NAME}:${env.IMAGE_TAG} ${env.IMAGE_NAME}:latest
-                    """
-                }
+                bat "docker tag ${env.IMAGE_NAME}:${env.IMAGE_TAG} ${env.IMAGE_NAME}:latest || exit /b"
             }
         }
 
-        stage('Deploy (Main Only)') {
-            when {
-                branch 'main'
-            }
+        stage('Deploy Docker (Main Only)') {
+            when { branch 'main' }
             steps {
                 script {
                     echo "Deploying version ${env.VERSION}..."
 
                     bat '''
-                    docker rm -f email-detection-container >nul 2>&1 || exit 0
+                    docker rm -f email-detection-container >nul 2>&1 || echo Container not found
                     '''
 
                     bat """
                     docker run -d ^
                     --name email-detection-container ^
                     -p 5000:5000 ^
-                    ${env.IMAGE_NAME}:${env.VERSION}
+                    ${env.IMAGE_NAME}:${env.VERSION} || exit /b
                     """
 
                     echo "Deployed: ${env.IMAGE_NAME}:${env.VERSION}"
@@ -75,16 +71,37 @@ pipeline {
             }
         }
 
-        stage('Non-Main Branch Info') {
-            when {
-                not {
-                    branch 'main'
+        stage('Build & Test (Feature Branch Only)') {
+            when { not { branch 'main' } }
+            steps {
+                script {
+                    echo "Branch ${env.BRANCH_NAME}: Building application in Docker..."
+
+                    bat """
+                    docker build -f docker/frontend.Dockerfile -t ${env.IMAGE_NAME}:${env.IMAGE_TAG} . || exit /b
+                    echo Build completed successfully for feature branch
+                    """
                 }
             }
-            steps {
-                echo "Branch ${env.BRANCH_NAME} built successfully. No deployment."
-            }
         }
+
+        // ✅ SAFE CLEANUP (FINAL FIX)
+        stage('Cleanup (Only Pipeline Images)') {
+            steps {
+                script {
+                    echo "Cleaning up only pipeline-created images..."
+
+                    // Force success no matter what happens
+                    bat '''
+                    docker rmi %IMAGE_NAME%:%IMAGE_TAG% >nul 2>&1
+                    docker rmi %IMAGE_NAME%:%VERSION% >nul 2>&1
+                    exit /b 0
+                    '''
+
+                    echo "Cleanup completed safely"
+                }
+            }
+        }   
     }
 
     post {

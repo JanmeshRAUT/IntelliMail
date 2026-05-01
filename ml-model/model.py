@@ -1,10 +1,14 @@
-"""Random Forest model for URL phishing detection."""
+"""
+Phishing URL Detection Model
+Random Forest Classifier for detecting malicious URLs
+"""
 
 import pandas as pd
 import numpy as np
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, precision_score, recall_score, confusion_matrix, classification_report
+from sklearn.preprocessing import StandardScaler
 import joblib
 from typing import Tuple, Dict
 import os
@@ -23,7 +27,15 @@ class PhishingURLModel:
             n_estimators: Number of trees in the forest
             random_state: Random state for reproducibility
         """
-        self.model = RandomForestClassifier(n_estimators=n_estimators, random_state=random_state, n_jobs=-1)
+        self.model = RandomForestClassifier(
+            n_estimators=n_estimators,
+            random_state=random_state,
+            max_depth=20,
+            min_samples_split=5,
+            min_samples_leaf=2,
+            n_jobs=-1,
+        )
+        self.scaler = StandardScaler()
         self.feature_names = get_feature_names()
         self.is_trained = False
     
@@ -118,13 +130,18 @@ class PhishingURLModel:
         print(f"Training set size: {len(X_train)}")
         print(f"Test set size: {len(X_test)}")
         
+        # Scale features
+        X_train_scaled = self.scaler.fit_transform(X_train)
+        X_test_scaled = self.scaler.transform(X_test)
+        
+        # Train model
         print("Training Random Forest Classifier...")
-        self.model.fit(X_train, y_train)
+        self.model.fit(X_train_scaled, y_train)
         self.is_trained = True
         
         # Make predictions
-        y_pred_train = self.model.predict(X_train)
-        y_pred_test = self.model.predict(X_test)
+        y_pred_train = self.model.predict(X_train_scaled)
+        y_pred_test = self.model.predict(X_test_scaled)
         
         # Evaluate
         metrics = {
@@ -171,8 +188,9 @@ class PhishingURLModel:
         if not self.is_trained:
             raise ValueError("Model must be trained before making predictions")
         
-        predictions = self.model.predict(X)
-        probabilities = self.model.predict_proba(X)
+        X_scaled = self.scaler.transform(X)
+        predictions = self.model.predict(X_scaled)
+        probabilities = self.model.predict_proba(X_scaled)
         
         return predictions, probabilities
     
@@ -217,13 +235,19 @@ class PhishingURLModel:
         if model_dir and not os.path.exists(model_dir):
             os.makedirs(model_dir)
         
+        # Save model and scaler
         joblib.dump(self.model, model_path)
+        
+        # Save scaler
+        scaler_path = model_path.replace('.pkl', '_scaler.pkl')
+        joblib.dump(self.scaler, scaler_path)
         
         # Save feature names
         feature_names_path = model_path.replace('.pkl', '_features.pkl')
         joblib.dump(self.feature_names, feature_names_path)
         
         print(f"Model saved to {model_path}")
+        print(f"Scaler saved to {scaler_path}")
         print(f"Feature names saved to {feature_names_path}")
     
     @classmethod
@@ -241,6 +265,10 @@ class PhishingURLModel:
         
         # Load model
         instance.model = joblib.load(model_path)
+        
+        # Load scaler
+        scaler_path = model_path.replace('.pkl', '_scaler.pkl')
+        instance.scaler = joblib.load(scaler_path)
         
         # Load feature names
         feature_names_path = model_path.replace('.pkl', '_features.pkl')

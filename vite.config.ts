@@ -5,32 +5,7 @@ import {defineConfig} from 'vite';
 
 export default defineConfig(({mode}) => {
   return {
-    plugins: [react(), tailwindcss()],
-    build: {
-      rollupOptions: {
-        output: {
-          manualChunks(id) {
-            if (!id.includes('node_modules')) {
-              return;
-            }
-
-            if (id.includes('react-router')) {
-              return 'router';
-            }
-
-            if (id.includes('react')) {
-              return 'react-vendor';
-            }
-
-            if (id.includes('lucide-react') || id.includes('motion')) {
-              return 'ui-vendor';
-            }
-
-            return 'vendor';
-          },
-        },
-      },
-    },
+    plugins: [react(), tailwindcss({ darkMode: 'class' })],
     resolve: {
       alias: {
         '@': path.resolve(__dirname, '.'),

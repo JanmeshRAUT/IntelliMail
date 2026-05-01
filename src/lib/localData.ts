@@ -1,11 +1,9 @@
-export type AppUser = {
+export interface AppUser {
+  id: string;
   name: string;
   email: string;
-  jobTitle?: string;
-  company?: string;
-  phone?: string;
-  avatar?: string;
-};
+  avatarUrl?: string;
+}
 
 export interface ThreadAnalysis {
   category: string;
