@@ -42,6 +42,8 @@ services:
       - "${GRAFANA_PORT:-3000}:3000"
     depends_on:
       - prometheus
+    volumes:
+      - ./docker/grafana/provisioning:/etc/grafana/provisioning
 
 volumes:
   mongodb_data:
