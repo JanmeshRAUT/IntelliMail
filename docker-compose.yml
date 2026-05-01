@@ -11,8 +11,7 @@ services:
     volumes:
       - mongodb_data:/data/db
     restart: always
-    networks:
-      - intellimail-network
+    restart: always
 
   app:
     build:
@@ -29,8 +28,6 @@ services:
     depends_on:
       - mongodb
     restart: always
-    networks:
-      - intellimail-network
 
   prometheus:
     image: prom/prometheus:latest
@@ -38,8 +35,6 @@ services:
       - "${PROM_PORT:-9090}:9090"
     volumes:
       - ./docker/prometheus.yml:/etc/prometheus/prometheus.yml
-    networks:
-      - intellimail-network
 
   grafana:
     image: grafana/grafana:latest
@@ -47,12 +42,6 @@ services:
       - "${GRAFANA_PORT:-3000}:3000"
     depends_on:
       - prometheus
-    networks:
-      - intellimail-network
 
 volumes:
   mongodb_data:
-
-networks:
-  intellimail-network:
-    driver: bridge
