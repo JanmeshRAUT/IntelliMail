@@ -4,66 +4,54 @@ pipeline {
     environment {
         COMPOSE_PROJECT_NAME = "intellimail-standalone"
         DOCKER_CONTENT_TRUST = "0"
+        
         // Target Ports for Standalone Pipeline
         APP_PORT = "5001"
         MONGO_PORT = "27018"
         PROM_PORT = "9091"
         GRAFANA_PORT = "3000"
+        
+        // Internal App Port
+        PORT = "3000"
     }
 
     stages {
         stage('Checkout') {
             steps {
+                // This ensures Jenkins pulls the latest docker-compose.yml and code from GitHub
                 checkout scm
             }
         }
+
         stage('System Validation') {
             steps {
-                echo "Checking Docker..."
+                echo "Checking Docker environment..."
                 bat 'docker --version'
-
-                echo "Checking Docker Compose..."
                 bat 'docker-compose --version'
-
-                echo "Checking Docker Daemon..."
-                bat 'docker ps'
-            }
-        }
-
-        stage('Pre-cache Images') {
-            steps {
-                echo "Pulling required images..."
-                bat 'docker pull prom/prometheus:latest'
-                bat 'docker pull grafana/grafana:latest'
-                bat 'docker pull mongo:7.0'
             }
         }
 
         stage('Cleanup') {
             steps {
-                echo "Cleaning old deployment..."
-                // Use project name to ensure we only stop THIS deployment's containers
+                echo "Cleaning old deployment for %COMPOSE_PROJECT_NAME%..."
                 bat 'docker-compose -p %COMPOSE_PROJECT_NAME% down -v --remove-orphans || exit 0'
                 bat 'docker container prune -f'
                 bat 'docker network prune -f'
-
-                echo "Cleanup completed"
             }
         }
 
         stage('Deploy') {
             steps {
                 withCredentials([file(credentialsId: 'env-file', variable: 'ENV_PATH')]) {
-                    echo "Deploying application on ports: App=%APP_PORT%, Mongo=%MONGO_PORT%, Prometheus=%PROM_PORT%, Grafana=%GRAFANA_PORT%..."
+                    echo "Deploying application on ports: App=%APP_PORT%, Mongo=%MONGO_PORT%..."
 
                     bat 'copy /Y %ENV_PATH% .env'
 
-                    // Inject port variables into docker-compose
                     bat '''
                     docker-compose -p %COMPOSE_PROJECT_NAME% up -d --build --remove-orphans
                     '''
 
-                    echo "Waiting for services..."
+                    echo "Waiting for services to stabilize..."
                     sleep 30
                 }
             }
@@ -71,7 +59,7 @@ pipeline {
 
         stage('Verify') {
             steps {
-                echo "Checking running containers for %COMPOSE_PROJECT_NAME%..."
+                echo "Checking running containers..."
                 bat 'docker-compose -p %COMPOSE_PROJECT_NAME% ps'
             }
         }
@@ -79,10 +67,8 @@ pipeline {
         stage('Summary') {
             steps {
                 echo "Deployment Successful!"
-                echo "App: http://localhost:%APP_PORT%"
-                echo "Prometheus: http://localhost:%PROM_PORT%"
-                echo "Grafana: http://localhost:%GRAFANA_PORT%"
-                echo "MongoDB (Host): localhost:%MONGO_PORT%"
+                echo "App URL: http://localhost:%APP_PORT%"
+                echo "Grafana Dashboard: http://localhost:%GRAFANA_PORT%"
             }
         }
     }
@@ -92,7 +78,7 @@ pipeline {
             echo "Pipeline finished."
         }
         failure {
-            echo "Deployment failed. Cleaning..."
+            echo "Deployment failed. Cleaning up..."
             bat 'docker-compose -p %COMPOSE_PROJECT_NAME% down -v'
         }
     }
