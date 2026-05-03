@@ -36,6 +36,7 @@ pipeline {
                     echo "Branch ${env.BRANCH_NAME}: Building and verifying application..."
 
                     bat """
+                    set DOCKER_BUILDKIT=0
                     docker build -f docker/frontend.Dockerfile -t ${env.IMAGE_NAME}:${env.IMAGE_TAG} . || exit /b
                     echo Build completed successfully for ${env.BRANCH_NAME}
                     """
