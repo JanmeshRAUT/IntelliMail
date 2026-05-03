@@ -8,8 +8,8 @@ ENV VITE_GOOGLE_CLIENT_ID=$VITE_GOOGLE_CLIENT_ID
 
 COPY package*.json ./
 RUN npm install
-# Fix for Rollup/Vite/LightningCSS issue on Alpine and missing git warning
-RUN apk add --no-cache git && npm install @rollup/rollup-linux-x64-musl lightningcss-linux-x64-musl
+# Fix for Rollup/Vite/LightningCSS/Tailwind issue on Alpine and missing git warning
+RUN apk add --no-cache git && npm install @rollup/rollup-linux-x64-musl lightningcss-linux-x64-musl @tailwindcss/oxide-linux-x64-musl
 
 COPY . .
 
