@@ -60,6 +60,7 @@ pipeline {
                         set MONGO_PORT=27017
                         set PROM_PORT=9091
                         set PORT=3000
+                        docker-compose -p intellimail-main down --remove-orphans
                         docker-compose -p intellimail-main up -d --build --scale grafana=0 --remove-orphans
                         '''
                     }
