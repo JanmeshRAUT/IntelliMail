@@ -3,6 +3,9 @@ export interface AppUser {
   name: string;
   email: string;
   avatarUrl?: string;
+  jobTitle?: string;
+  company?: string;
+  phone?: string;
 }
 
 export interface ThreadAnalysis {
@@ -11,6 +14,11 @@ export interface ThreadAnalysis {
   priority: string;
   threats: string[];
   summary: string;
+  forensic?: {
+    summary?: string;
+    iocs?: string[];
+    severity?: 'Low' | 'Medium' | 'High';
+  };
 }
 
 export interface Email {
@@ -32,7 +40,7 @@ export interface Thread {
 
 export interface Alert {
   id: string;
-  type: 'Threat' | 'Urgent';
+  type: 'Threat' | 'Urgent' | 'Forensic';
   message: string;
   threadId: string;
   timestamp: string;

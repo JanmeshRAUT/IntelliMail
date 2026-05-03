@@ -27,7 +27,7 @@ client.collectDefaultMetrics({ register });
 
 async function startServer() {
   const app = express();
-  const PORT = process.env.PORT || 3000;
+  const PORT = Number(process.env.PORT) || 3000;
 
   // Prometheus metrics endpoint
   app.get('/metrics', async (req, res) => {

@@ -33,6 +33,9 @@ export interface EmailSecurityAnalysis {
   bulkEmailCandidate?: boolean;
   confidenceLabel?: string;
   attackType?: string;
+  lstmConfidence?: number;
+  lstmBand?: string;
+  timestamp: string;
 }
 
 export interface ThreadSecuritySummary {

@@ -11,6 +11,14 @@ pipeline {
     }
 
     stages {
+        stage('Pre-Cleanup') {
+            steps {
+                script {
+                    echo "Freeing up disk space before build..."
+                    bat "docker container prune -f || echo prune failed"
+                }
+            }
+        }
 
         stage('Checkout') {
             steps {
@@ -21,7 +29,7 @@ pipeline {
         stage('Set Version') {
             steps {
                 script {
-                    env.VERSION = "dev-${env.BUILD_NUMBER}"
+                    env.VERSION = "v1.0.${env.BUILD_NUMBER}"
                     env.IMAGE_TAG = "${env.BRANCH_NAME}-${env.BUILD_NUMBER}".toLowerCase()
 
                     echo "Dev Version: ${env.VERSION}"
@@ -30,26 +38,70 @@ pipeline {
             }
         }
 
-        stage('Build & Test') {
+        stage('Build Docker Image') {
+            when { branch 'main' }
             steps {
                 script {
-                    echo "Branch ${env.BRANCH_NAME}: Building and verifying application..."
-
-                    retry(3) {
-                        bat """
-                        set DOCKER_BUILDKIT=0
-                        docker build -f docker/frontend.Dockerfile -t ${env.IMAGE_NAME}:${env.IMAGE_TAG} . || exit /b
-                        echo Build completed successfully for ${env.BRANCH_NAME}
-                        """
-                    }
+                    bat """
+                    docker build -f docker/frontend.Dockerfile -t ${env.IMAGE_NAME}:${env.IMAGE_TAG} . || exit /b
+                    docker tag ${env.IMAGE_NAME}:${env.IMAGE_TAG} ${env.IMAGE_NAME}:${env.VERSION} || exit /b
+                    """
                 }
             }
         }
 
-        stage('Cleanup') {
+        stage('Tag Latest (Main Only)') {
+            when { branch 'main' }
+            steps {
+                bat "docker tag ${env.IMAGE_NAME}:${env.IMAGE_TAG} ${env.IMAGE_NAME}:latest || exit /b"
+            }
+        }
+
+        stage('Deploy Docker (Main Only)') {
+            when { branch 'main' }
             steps {
                 script {
-                    echo "Feature branch image preserved: ${env.IMAGE_NAME}:${env.IMAGE_TAG}"
+                    echo "Deploying version ${env.VERSION} on port 5000..."
+
+                    withCredentials([file(credentialsId: 'env-file', variable: 'ENV_FILE')]) {
+                        bat "copy /Y %ENV_FILE% .env"
+                        
+                        // Use unique project name and set ports
+                        // Scale grafana to 0 to disable it for Multibranch
+                        bat '''
+                        set APP_PORT=5000
+                        set MONGO_PORT=27017
+                        set PORT=3000
+                        docker-compose -p intellimail-multibranch up -d --build --scale grafana=0 --remove-orphans
+                        '''
+                    }
+
+                    echo "Deployed: ${env.IMAGE_NAME}:${env.VERSION} at http://localhost:5000"
+                }
+            }
+        }
+
+        stage('Build Feature Branch') {
+            when { 
+                not { branch 'main' } 
+            }
+            steps {
+                script {
+                    echo "Branch ${env.BRANCH_NAME}: Building application in Docker..."
+
+                    bat """
+                    docker build -f docker/frontend.Dockerfile -t ${env.IMAGE_NAME}:${env.IMAGE_TAG} . || exit /b
+                    echo Build completed successfully for feature branch
+                    """
+                }
+            }
+        }
+
+        // ✅ SAFE CLEANUP (DELETION DISABLED TO PRESERVE IMAGES)
+        stage('Cleanup (Log only)') {
+            steps {
+                script {
+                    echo "Image deletion disabled. Image preserved: ${env.IMAGE_NAME}:${env.IMAGE_TAG}"
                 }
             }
         }   
@@ -57,10 +109,13 @@ pipeline {
 
     post {
         success {
-            echo "Feature Branch Pipeline SUCCESS for ${env.BRANCH_NAME}"
+            echo "Pipeline SUCCESS for ${env.BRANCH_NAME}"
         }
         failure {
-            echo "Feature Branch Pipeline FAILED for ${env.BRANCH_NAME}"
+            echo "Pipeline FAILED for ${env.BRANCH_NAME}"
+        }
+        always {
+            echo "Pipeline finished for ${env.BRANCH_NAME}"
         }
     }
 }

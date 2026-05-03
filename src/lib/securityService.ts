@@ -154,6 +154,7 @@ export function analyzeThreadEmails(thread: Thread): ThreadSecuritySummary {
       toneChanged,
       explanation,
       suspiciousIndex: index,
+      timestamp: email.timestamp,
     };
 
     emailAnalyses.push(analysis);
@@ -326,6 +327,7 @@ async function analyzeEmailWithMl(
     bulkEmailCandidate,
     confidenceLabel: legitimateConfidence,
     attackType: bulkEmailCandidate ? 'Marketing / Bulk Email' : undefined,
+    timestamp: email.timestamp,
   };
 }
 
