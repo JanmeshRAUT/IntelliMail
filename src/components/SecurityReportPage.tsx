@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import { Link, useParams } from 'react-router-dom';
-import { ArrowLeft, FileText, Shield, AlertTriangle, AlertCircle, CheckCircle } from 'lucide-react';
+import { ArrowLeft, FileText, Shield, AlertTriangle, AlertCircle, CheckCircle, Download } from 'lucide-react';
+import { generateForensicPDF } from '../lib/reportGenerator';
 import { getEmails } from '../lib/localData';
 import type { Thread as SecurityThread, ThreadSecuritySummary, EmailSecurityAnalysis } from '../lib/types';
 
@@ -18,9 +19,9 @@ function formatDate(value: string) {
 }
 
 function riskPill(level: 'Low' | 'Medium' | 'High') {
-  if (level === 'High') return 'bg-red-100 text-red-700 border-red-200';
-  if (level === 'Medium') return 'bg-amber-100 text-amber-700 border-amber-200';
-  return 'bg-emerald-100 text-emerald-700 border-emerald-200';
+  if (level === 'High') return 'bg-red-500 text-white border-red-600';
+  if (level === 'Medium') return 'bg-amber-500 text-white border-amber-600';
+  return 'bg-emerald-500 text-white border-emerald-600';
 }
 
 export default function SecurityReportPage() {
@@ -28,6 +29,12 @@ export default function SecurityReportPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [summary, setSummary] = useState<ThreadSecuritySummary | null>(null);
+
+  const handleDownloadReport = () => {
+    if (!summary) return;
+    const participants = new Set(summary.emails.map(e => e.sender)).size;
+    generateForensicPDF(summary, participants);
+  };
 
   useEffect(() => {
     const loadReport = async () => {
@@ -143,10 +150,21 @@ export default function SecurityReportPage() {
             <ArrowLeft className="h-4 w-4" />
             Back to Dashboard
           </Link>
-          <span className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--card)] px-3 py-1 text-xs font-bold uppercase tracking-[0.14em] text-[var(--muted-foreground)]">
-            <FileText className="h-3.5 w-3.5" />
-            Structured Report
-          </span>
+          <div className="flex items-center gap-3">
+            {summary && (
+              <button
+                onClick={handleDownloadReport}
+                className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 transition-all shadow-lg"
+              >
+                <Download className="h-4 w-4" />
+                Generate Forensic PDF
+              </button>
+            )}
+            <span className="inline-flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--card)] px-3 py-1 text-xs font-bold uppercase tracking-[0.14em] text-[var(--muted-foreground)]">
+              <FileText className="h-3.5 w-3.5" />
+              Structured Report
+            </span>
+          </div>
         </div>
 
         {loading && (
@@ -163,39 +181,68 @@ export default function SecurityReportPage() {
 
         {summary && (
           <>
-            <div className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-6 shadow-sm">
-              <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-                <div>
-                  <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--muted-foreground)]">Thread Report</p>
-                  <h1 className="mt-2 text-3xl font-black">Security Analysis Report</h1>
-                  <p className="mt-2 text-sm text-[var(--muted-foreground)]">Thread ID: {summary.threadId}</p>
+            <div className="relative overflow-hidden rounded-3xl border-2 border-[var(--border)] bg-[var(--card)] shadow-2xl">
+              <div className="absolute top-0 right-0">
+                <div className="bg-red-600 text-white px-8 py-2 font-black text-[10px] tracking-[0.3em] uppercase transform rotate-45 translate-x-8 translate-y-2 shadow-lg">
+                  Confidential
                 </div>
-                <span className={cn('rounded-full border px-3 py-1 text-sm font-semibold', riskPill(summary.overallRiskLevel))}>
-                  {summary.overallRiskLevel} Risk ({summary.overallRisk}/100)
-                </span>
+              </div>
+              
+              <div className="p-8 md:p-10 border-b border-[var(--border)] bg-slate-50 dark:bg-slate-900/50">
+                <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-3">
+                      <div className="p-3 bg-slate-900 text-white rounded-xl shadow-xl">
+                        <Shield className="w-6 h-6" />
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500">Forensic Intelligence Report</p>
+                        <h1 className="text-3xl md:text-4xl font-black tracking-tight mt-1">Security Analysis Findings</h1>
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap gap-4 pt-2">
+                      <div className="px-4 py-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm">
+                        <p className="text-[8px] font-black uppercase tracking-widest text-slate-400">Case Identifier</p>
+                        <p className="text-sm font-mono font-bold mt-0.5">{summary.threadId}</p>
+                      </div>
+                      <div className="px-4 py-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm">
+                        <p className="text-[8px] font-black uppercase tracking-widest text-slate-400">Report Status</p>
+                        <p className="text-sm font-bold mt-0.5 text-emerald-600 flex items-center gap-1.5">
+                          <CheckCircle className="w-3.5 h-3.5" />
+                          Finalized
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="flex flex-col items-end gap-3">
+                    <div className={cn('rounded-2xl border-2 px-6 py-4 text-center shadow-xl min-w-[180px]', riskPill(summary.overallRiskLevel))}>
+                      <p className="text-[10px] font-black uppercase tracking-widest opacity-80 mb-1">Threat Score</p>
+                      <p className="text-4xl font-black">{summary.overallRisk}/100</p>
+                      <p className="text-xs font-bold mt-1 uppercase tracking-widest">{summary.overallRiskLevel} Risk</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-8 md:p-10 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <StatCard label="Analyzed Emails" value={metrics.total.toString()} subValue="Evidence Count" icon={FileText} />
+                <StatCard label="High Threats" value={metrics.high.toString()} subValue="Critical Alerts" icon={AlertTriangle} color="text-red-600" />
+                <StatCard label="Flagged Links" value={metrics.flaggedLinks.toString()} subValue="Malicious URLs" icon={Shield} />
+                <StatCard label="Risk Level" value={summary.overallRiskLevel} subValue="Verdict" icon={CheckCircle} color={summary.overallRiskLevel === 'High' ? 'text-red-600' : 'text-emerald-600'} />
               </div>
             </div>
 
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-5">
-              <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-4">
-                <p className="text-xs font-semibold uppercase text-[var(--muted-foreground)]">Total Emails</p>
-                <p className="mt-2 text-2xl font-black">{metrics.total}</p>
-              </div>
-              <div className="rounded-xl border border-red-200 bg-red-50 p-4">
-                <p className="text-xs font-semibold uppercase text-red-700">High</p>
-                <p className="mt-2 text-2xl font-black text-red-900">{metrics.high}</p>
-              </div>
-              <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
-                <p className="text-xs font-semibold uppercase text-amber-700">Medium</p>
-                <p className="mt-2 text-2xl font-black text-amber-900">{metrics.medium}</p>
-              </div>
-              <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4">
-                <p className="text-xs font-semibold uppercase text-emerald-700">Low</p>
-                <p className="mt-2 text-2xl font-black text-emerald-900">{metrics.low}</p>
-              </div>
-              <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-4">
-                <p className="text-xs font-semibold uppercase text-[var(--muted-foreground)]">Flagged Links</p>
-                <p className="mt-2 text-2xl font-black">{metrics.flaggedLinks}</p>
+            {/* Executive Verdict Section */}
+            <div className="rounded-3xl border border-[var(--border)] bg-[var(--card)] p-8 md:p-10 shadow-sm">
+              <h2 className="text-sm font-black uppercase tracking-[0.2em] text-slate-500 mb-6 flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-slate-900" />
+                Executive Verdict
+              </h2>
+              <div className="prose prose-slate max-w-none dark:prose-invert">
+                <p className="text-xl font-bold leading-relaxed text-[var(--foreground)]">
+                  {summary.threadThreatLevel}
+                </p>
               </div>
             </div>
 
@@ -302,6 +349,19 @@ export default function SecurityReportPage() {
           </>
         )}
       </div>
+    </div>
+  );
+}
+
+function StatCard({ label, value, subValue, icon: Icon, color }: { label: string, value: string, subValue: string, icon: any, color?: string }) {
+  return (
+    <div className="p-6 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm group hover:border-slate-400 transition-all">
+      <div className="flex items-center justify-between mb-4">
+        <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 group-hover:text-slate-600">{label}</span>
+        <Icon className={cn("w-4 h-4 opacity-40 group-hover:opacity-100 transition-opacity", color)} />
+      </div>
+      <p className={cn("text-2xl font-black tracking-tight", color)}>{value}</p>
+      <p className="text-[10px] font-bold opacity-40 mt-1 uppercase tracking-wider">{subValue}</p>
     </div>
   );
 }
