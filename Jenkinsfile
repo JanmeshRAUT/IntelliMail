@@ -61,12 +61,9 @@ pipeline {
                         set PROM_PORT=9091
                         set PORT=3000
                         
-                        // Cleanup old project name if it exists to release ports
-                        docker-compose -p intellimail-multibranch down --remove-orphans || echo "Old project not found"
-                        
-                        // Normal cleanup for this project
-                        docker-compose -p intellimail-main down --remove-orphans
-                        docker-compose -p intellimail-main up -d --build --scale grafana=0 --remove-orphans
+                        // Use consistent project name to reliably replace old containers
+                        docker-compose -p intellimail-multibranch down --remove-orphans
+                        docker-compose -p intellimail-multibranch up -d --build --scale grafana=0 --remove-orphans
                         '''
                     }
 
