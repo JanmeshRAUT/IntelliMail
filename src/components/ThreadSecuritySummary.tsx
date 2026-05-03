@@ -3,6 +3,7 @@ import { RiskBadge } from './RiskBadge';
 import { Download, Shield, FileText, Info, AlertTriangle, CheckCircle } from 'lucide-react';
 import { classifyThreadAttack, getAttackTypeDisplay } from '../lib/attackClassifier';
 import type { ThreadSecuritySummary as ThreadSecuritySummaryType } from '../lib/types';
+import { generateForensicPDF } from '../lib/reportGenerator';
 
 interface ThreadSecuritySummaryProps {
   summary: ThreadSecuritySummaryType;
@@ -31,14 +32,7 @@ export const ThreadSecuritySummary: React.FC<ThreadSecuritySummaryProps> = ({
       : 'Communication appears safe. standard monitoring applies.';
 
   const handleDownloadReport = () => {
-    const reportData = JSON.stringify(summary, null, 2);
-    const blob = new Blob([reportData], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `Forensic_Report_${summary.threadId}.json`;
-    link.click();
-    URL.revokeObjectURL(url);
+    generateForensicPDF(summary, participantCount);
   };
 
   return (
