@@ -7,7 +7,7 @@ ARG VITE_GOOGLE_CLIENT_ID
 ENV VITE_GOOGLE_CLIENT_ID=$VITE_GOOGLE_CLIENT_ID
 
 COPY package*.json ./
-RUN npm install
+RUN rm -f package-lock.json && npm install
 
 COPY . .
 
@@ -24,7 +24,7 @@ COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/server.js ./
 COPY --from=builder /app/package*.json ./
 
-RUN npm install --omit=dev
+RUN rm -f package-lock.json && npm install --omit=dev
 
 EXPOSE 3000
 
