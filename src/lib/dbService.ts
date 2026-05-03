@@ -74,7 +74,11 @@ export async function saveThreadAnalysis(
     const threadAnalysis = new ThreadAnalysis({
       userId,
       threadId,
-      emails: analysisResult.emails,
+      emails: analysisResult.emails.map(email => ({
+        ...email,
+        userId,
+        threadId
+      })),
       overallRisk: analysisResult.overallRisk,
       overallRiskLevel: analysisResult.overallRiskLevel,
       firstSuspiciousEmailIndex: analysisResult.firstSuspiciousEmailIndex,
