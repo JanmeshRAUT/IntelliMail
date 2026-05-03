@@ -61,8 +61,8 @@ pipeline {
                         set PROM_PORT=9091
                         set PORT=3000
                         
-                        // Use consistent project name to reliably replace old containers
                         docker-compose -p intellimail-multibranch down --remove-orphans
+                        timeout /t 5 /nobreak
                         docker-compose -p intellimail-multibranch up -d --build --scale grafana=0 --remove-orphans
                         '''
                     }
