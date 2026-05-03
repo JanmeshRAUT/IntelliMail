@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { AlertTriangle, ShieldAlert, Bell, X, ShieldCheck } from 'lucide-react';
+import { AlertTriangle, ShieldAlert, Bell, X, ShieldCheck, Search } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Link } from 'react-router-dom';
 import { Alert, getAlerts } from '../lib/localData';
@@ -74,18 +74,20 @@ export default function AlertsPanel() {
                       >
                         <div className={cn(
                           "p-2.5 rounded-xl shrink-0 shadow-sm",
-                          alert.type === 'Threat' 
-                          ? "bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400 group-hover:scale-110" 
+                          alert.type === 'Threat'
+                          ? "bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400 group-hover:scale-110"
+                          : alert.type === 'Forensic'
+                          ? "bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300 group-hover:scale-110"
                           : "bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400 group-hover:scale-110"
                         )}>
-                          {alert.type === 'Threat' ? <ShieldAlert className="w-5 h-5" /> : <AlertTriangle className="w-5 h-5" />}
+                          {alert.type === 'Threat' ? <ShieldAlert className="w-5 h-5" /> : alert.type === 'Forensic' ? <Search className="w-5 h-5" /> : <AlertTriangle className="w-5 h-5" />}
                         </div>
                         <div className="space-y-1.5 min-w-0">
                           <p className="text-xs font-bold text-[var(--foreground)] group-hover:text-primary-600 transition-colors leading-relaxed">
                             {alert.message}
                           </p>
                           <p className="text-[10px] text-[var(--muted-foreground)] font-bold tracking-tight opacity-60">
-                            {new Date(alert.timestamp).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })} • Conversational Insight
+                            {new Date(alert.timestamp).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })} • {alert.type === 'Forensic' ? 'Forensic Alert' : 'Conversational Insight'}
                           </p>
                         </div>
                       </Link>
