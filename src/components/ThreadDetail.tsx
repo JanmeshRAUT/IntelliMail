@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, User, ShieldAlert, Zap } from 'lucide-react';
+import { ArrowLeft, User, ShieldAlert, Zap, Search } from 'lucide-react';
 import { motion } from 'motion/react';
 import { Email, getEmails, getThreads, Thread } from '../lib/localData';
 
@@ -173,6 +173,23 @@ export default function ThreadDetail() {
                   </ul>
                 </div>
               )}
+
+                {thread.analysis?.forensic && (
+                  <div className="p-6 bg-violet-500/5 border-2 border-violet-500/10 rounded-[2rem] space-y-4">
+                    <div className="flex items-center gap-3 text-violet-600">
+                      <Search className="w-5 h-5" />
+                      <h3 className="text-[10px] font-black uppercase tracking-widest">Forensic Findings</h3>
+                    </div>
+                    <p className="text-sm text-[var(--foreground)] font-semibold">{thread.analysis.forensic.summary || 'No forensic summary available.'}</p>
+                    {thread.analysis.forensic.iocs && thread.analysis.forensic.iocs.length > 0 && (
+                      <ul className="space-y-2">
+                        {thread.analysis.forensic.iocs.map((ioc, i) => (
+                          <li key={i} className="text-xs font-mono text-[var(--foreground)] bg-[var(--background)] p-2 rounded-lg border border-[var(--border)]">{ioc}</li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                )}
             </div>
           </div>
         </aside>
