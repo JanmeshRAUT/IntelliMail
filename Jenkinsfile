@@ -11,6 +11,14 @@ pipeline {
     }
 
     stages {
+        stage('Pre-Cleanup') {
+            steps {
+                script {
+                    echo "Freeing up disk space before build..."
+                    bat "docker container prune -f || echo prune failed"
+                }
+            }
+        }
 
         stage('Checkout') {
             steps {
@@ -89,5 +97,12 @@ pipeline {
         failure {
             echo "Production Pipeline FAILED"
         }
+        always {
+            script {
+                echo "Cleaning up Docker resources to save space..."
+                bat "docker image prune -f --filter \"until=24h\" || echo Cleanup failed"
+                echo "Production Pipeline finished"
+            }
+        }
     }
-}
+}

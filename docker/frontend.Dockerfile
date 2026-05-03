@@ -7,24 +7,26 @@ ARG VITE_GOOGLE_CLIENT_ID
 ENV VITE_GOOGLE_CLIENT_ID=$VITE_GOOGLE_CLIENT_ID
 
 COPY package*.json ./
-RUN rm -f package-lock.json && npm install
+RUN npm install
 
 COPY . .
 
 RUN npm run build
 RUN npm run build:server
 
+# Prune devDependencies to reduce size before copying
+RUN npm prune --omit=dev
 
 # ----------- PRODUCTION STAGE -----------
 FROM node:22-alpine
 
 WORKDIR /app
 
+# Copy built assets and production-only dependencies
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/server.js ./
+COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/package*.json ./
-
-RUN rm -f package-lock.json && npm install --omit=dev
 
 EXPOSE 3000
 
