@@ -15,12 +15,12 @@ export const generateForensicPDF = (summary: ThreadSecuritySummary, participantC
     success: [5, 150, 105], // Emerald 600
     muted: [107, 114, 128], // Gray 500
     light: [243, 244, 246], // Gray 100
-  };
+  } as const;
 
-  const getRiskColor = (level: string) => {
-    if (level === 'High') return colors.danger;
-    if (level === 'Medium') return colors.warning;
-    return colors.success;
+  const getRiskColor = (level: string): [number, number, number] => {
+    if (level === 'High') return colors.danger as unknown as [number, number, number];
+    if (level === 'Medium') return colors.warning as unknown as [number, number, number];
+    return colors.success as unknown as [number, number, number];
   };
 
   // --- PAGE 1: COVER PAGE ---
@@ -156,7 +156,7 @@ export const generateForensicPDF = (summary: ThreadSecuritySummary, participantC
     head: [['#', 'Sender', 'Risk', 'Score', 'LSTM', 'Date']],
     body: tableData,
     theme: 'striped',
-    headStyles: { fillColor: colors.primary, textColor: [255, 255, 255], fontStyle: 'bold' },
+    headStyles: { fillColor: colors.primary as unknown as [number, number, number], textColor: [255, 255, 255], fontStyle: 'bold' },
     styles: { fontSize: 8, cellPadding: 3 },
     columnStyles: {
       0: { cellWidth: 10 },

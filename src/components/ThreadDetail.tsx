@@ -83,8 +83,10 @@ export default function ThreadDetail() {
         }
       });
       
-      if (securityResponse.data.success) {
-        setFullSecurityAnalysis(securityResponse.data.data);
+      const securityPayload = securityResponse.data as { success?: boolean; data?: ThreadSecuritySummaryType; error?: string };
+      
+      if (securityPayload.success && securityPayload.data) {
+        setFullSecurityAnalysis(securityPayload.data);
       }
 
       setAnalysisProgress(75);

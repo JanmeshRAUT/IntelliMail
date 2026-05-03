@@ -277,7 +277,7 @@ export default function SecurityReportPage() {
                       {typeof highestRiskEmail.lstmConfidence === 'number' ? highestRiskEmail.lstmConfidence.toFixed(2) : 'N/A'}
                     </p>
                     <p>
-                      <span className="font-semibold">Interpretation:</span> {highestRiskEmail.mlExplanation || 'No model narrative available'}
+                      <span className="font-semibold">Interpretation:</span> {highestRiskEmail.explanation || 'No model narrative available'}
                     </p>
                   </div>
                 ) : (

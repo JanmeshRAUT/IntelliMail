@@ -3,6 +3,9 @@ export interface AppUser {
   name: string;
   email: string;
   avatarUrl?: string;
+  jobTitle?: string;
+  company?: string;
+  phone?: string;
 }
 
 export interface ThreadAnalysis {
