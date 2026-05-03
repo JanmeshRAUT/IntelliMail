@@ -1,13 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, ShieldAlert } from 'lucide-react';
-import { motion } from 'motion/react';
+import { ArrowLeft, User, ShieldAlert, Zap, Search, Shield, ExternalLink, X, AlertTriangle, ShieldCheck } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
 import axios from 'axios';
 import { Email, getEmails, getThreads, Thread, ThreadAnalysis, getUser } from '../lib/localData';
 import { ThreadSecuritySummary } from './ThreadSecuritySummary';
 import { SecurityTimeline } from './SecurityTimeline';
-import { Shield, ExternalLink, X, AlertTriangle, ShieldCheck } from 'lucide-react';
-import { AnimatePresence } from 'motion/react';
 import type { ThreadSecuritySummary as ThreadSecuritySummaryType } from '../lib/types';
 
 export default function ThreadDetail() {
@@ -352,9 +350,65 @@ export default function ThreadDetail() {
               </div>
             </div>
 
+            {/* Cognitive Profile */}
+            {thread.analysis && (
+              <div className="bg-[var(--card)] border border-[var(--border)] p-8 rounded-[2.5rem] space-y-8 shadow-xl transition-all duration-300">
+                <header className="space-y-2">
+                  <div className="flex items-center gap-3 text-primary-600 dark:text-primary-400">
+                    <div className="p-2.5 bg-primary-600/10 rounded-[1rem]">
+                      <Zap className="w-5 h-5 fill-current" />
+                    </div>
+                    <h2 className="font-black uppercase tracking-[0.2em] text-[10px]">Cognitive Profile</h2>
+                  </div>
+                </header>
+
+                <div className="space-y-8">
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between border-b border-[var(--border)] pb-2">
+                      <h3 className="text-[10px] font-black text-[var(--muted-foreground)] uppercase tracking-widest">Narrative Synthesis</h3>
+                    </div>
+                    <p className="text-sm leading-relaxed text-[var(--foreground)] font-semibold opacity-90">
+                      {thread.analysis.summary || "Deep synthesis pending synchronization..."}
+                    </p>
+                  </div>
+
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between border-b border-[var(--border)] pb-2">
+                      <h3 className="text-[10px] font-black text-[var(--muted-foreground)] uppercase tracking-widest">Sentiment Resonance</h3>
+                    </div>
+                    <div className="bg-[var(--secondary)]/40 p-4 rounded-2xl border border-[var(--border)] flex items-center gap-4 transition-all hover:border-primary-500/30">
+                      <div className={cn(
+                        "w-3 h-3 rounded-full ring-4 ring-offset-2 ring-offset-[var(--card)]",
+                        thread.analysis.sentiment === 'Positive' ? "bg-emerald-500 ring-emerald-500/20" :
+                        thread.analysis.sentiment === 'Negative' ? "bg-rose-500 ring-rose-500/20" : "bg-blue-500 ring-blue-500/20"
+                      )} />
+                      <span className="text-sm font-black text-[var(--foreground)] tracking-tight">{thread.analysis.sentiment || 'Neutral Stability'}</span>
+                    </div>
+                  </div>
+
+                  {thread.analysis.forensic && (
+                    <div className="p-6 bg-violet-500/5 border border-violet-500/20 rounded-[2rem] space-y-4">
+                      <div className="flex items-center gap-3 text-violet-600">
+                        <Search className="w-5 h-5" />
+                        <h3 className="text-[10px] font-black uppercase tracking-widest">Forensic Findings</h3>
+                      </div>
+                      <p className="text-sm text-[var(--foreground)] font-semibold">{thread.analysis.forensic.summary || 'No forensic summary available.'}</p>
+                      {thread.analysis.forensic.iocs && thread.analysis.forensic.iocs.length > 0 && (
+                        <div className="flex flex-wrap gap-2 pt-2">
+                          {thread.analysis.forensic.iocs.map((ioc, i) => (
+                            <span key={i} className="text-[9px] font-mono font-bold text-[var(--foreground)] bg-[var(--background)] px-2 py-1 rounded border border-[var(--border)]">{ioc}</span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
             {/* Signal Feed */}
             {fullSecurityAnalysis && (
-              <div className="space-y-6">
+              <div className="space-y-6 pb-10">
                 <div className="flex items-center gap-3">
                   <div className="w-8 h-1 bg-primary-600 rounded-full" />
                   <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--muted-foreground)]">Critical Signals</h3>

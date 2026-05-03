@@ -62,6 +62,13 @@ export default function Analytics() {
       accent: 'from-indigo-500 to-violet-600',
       note: `${spamRate}% filtered`,
     },
+    {
+      label: 'Forensic Alerts',
+      value: threads.filter((t) => t.analysis?.forensic && (t.analysis.forensic.iocs || []).length > 0).length,
+      icon: AlertTriangle,
+      accent: 'from-violet-500 to-fuchsia-600',
+      note: 'Active forensic indicators',
+    },
   ];
 
   const topThreads = [...threads]
