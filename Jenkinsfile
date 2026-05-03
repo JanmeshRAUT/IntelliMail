@@ -43,6 +43,7 @@ pipeline {
             steps {
                 script {
                     bat """
+                    set DOCKER_BUILDKIT=0
                     docker build -f docker/frontend.Dockerfile -t ${env.IMAGE_NAME}:${env.IMAGE_TAG} . || exit /b
                     docker tag ${env.IMAGE_NAME}:${env.IMAGE_TAG} ${env.IMAGE_NAME}:${env.VERSION} || exit /b
                     """
@@ -89,10 +90,13 @@ pipeline {
                 script {
                     echo "Branch ${env.BRANCH_NAME}: Building application in Docker..."
 
-                    bat """
-                    docker build -f docker/frontend.Dockerfile -t ${env.IMAGE_NAME}:${env.IMAGE_TAG} . || exit /b
-                    echo Build completed successfully for feature branch
-                    """
+                    retry(3) {
+                        bat """
+                        set DOCKER_BUILDKIT=0
+                        docker build -f docker/frontend.Dockerfile -t ${env.IMAGE_NAME}:${env.IMAGE_TAG} . || exit /b
+                        echo Build completed successfully for feature branch
+                        """
+                    }
                 }
             }
         }

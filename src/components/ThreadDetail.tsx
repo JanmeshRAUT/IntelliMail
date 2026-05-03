@@ -352,7 +352,7 @@ export default function ThreadDetail() {
               </div>
             </div>
 
-            {/* Cognitive Profile (from SamruddhiDev) */}
+            {/* Cognitive Profile */}
             {thread.analysis && (
               <div className="bg-[var(--card)] border border-[var(--border)] p-8 rounded-[2.5rem] space-y-8 shadow-xl transition-all duration-300">
                 <header className="space-y-2">
