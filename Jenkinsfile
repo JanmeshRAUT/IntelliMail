@@ -62,7 +62,8 @@ pipeline {
                         set PORT=3000
                         
                         docker-compose -p intellimail-multibranch down --remove-orphans
-                        timeout /t 5 /nobreak
+                        ping 127.0.0.1 -n 6 > nul
+                        set DOCKER_BUILDKIT=0
                         docker-compose -p intellimail-multibranch up -d --build --scale grafana=0 --remove-orphans
                         '''
                     }
