@@ -122,12 +122,54 @@ const threatLogSchema = new Schema<IThreatLog>({
   detectedAt: { type: Date, default: Date.now, index: true },
 });
 
+// Analyzed URL schema for tracking every URL scanned
+interface IAnalyzedUrl extends Document {
+  userId: string;
+  url: string;
+  domain: string;
+  isMalicious: boolean;
+  threatType?: string;
+  confidence: number;
+  detectedAt: Date;
+}
+
+const analyzedUrlSchema = new Schema<IAnalyzedUrl>({
+  userId: { type: String, required: true, index: true },
+  url: { type: String, required: true, index: true },
+  domain: String,
+  isMalicious: { type: Boolean, default: false },
+  threatType: String,
+  confidence: { type: Number, default: 0 },
+  detectedAt: { type: Date, default: Date.now, index: true },
+});
+
+// Flagged content schema for tracking specific snippets that triggered alerts
+interface IFlaggedContent extends Document {
+  userId: string;
+  emailId: string;
+  contentSnippet: string;
+  threatType: string;
+  severity: string;
+  detectedAt: Date;
+}
+
+const flaggedContentSchema = new Schema<IFlaggedContent>({
+  userId: { type: String, required: true, index: true },
+  emailId: { type: String, required: true, index: true },
+  contentSnippet: { type: String, required: true },
+  threatType: { type: String, required: true },
+  severity: { type: String, enum: ['Low', 'Medium', 'High'], required: true },
+  detectedAt: { type: Date, default: Date.now, index: true },
+});
+
 // Create models
 export const User = mongoose.model<IUser>('User', userSchema);
 export const EmailAnalysis = mongoose.model<IEmailAnalysis>('EmailAnalysis', emailAnalysisSchema);
 export const ThreadAnalysis = mongoose.model<IThreadAnalysis>('ThreadAnalysis', threadAnalysisSchema);
 export const AnalysisHistory = mongoose.model<IAnalysisHistory>('AnalysisHistory', analysisHistorySchema);
 export const ThreatLog = mongoose.model<IThreatLog>('ThreatLog', threatLogSchema);
+export const AnalyzedUrl = mongoose.model<IAnalyzedUrl>('AnalyzedUrl', analyzedUrlSchema);
+export const FlaggedContent = mongoose.model<IFlaggedContent>('FlaggedContent', flaggedContentSchema);
 
 // Export types for use in other files
 export type { IUser, IEmailAnalysis, IThreadAnalysis, IAnalysisHistory, IThreatLog };

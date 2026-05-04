@@ -1,0 +1,6 @@
+Confusion Matrix
+================
+
+                Predicted Legitimate (0)    Predicted Phishing (1)
+Actual Legitimate (0):    7200                 0                   
+Actual Phishing (1):      4800                 0                   

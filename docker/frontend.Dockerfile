@@ -3,18 +3,6 @@ FROM node:22-alpine AS builder
 
 WORKDIR /app
 
-# Accept build-time environment variables
-ARG VITE_API_URL=http://localhost:3000
-ARG VITE_GOOGLE_CLIENT_ID=""
-ARG VITE_ML_SERVICE_URL="https://JerryJR1705-intellmail.hf.space/"
-ARG NODE_ENV=production
-
-# Set build-time environment variables
-ENV VITE_API_URL=${VITE_API_URL}
-ENV VITE_GOOGLE_CLIENT_ID=${VITE_GOOGLE_CLIENT_ID}
-ENV VITE_ML_SERVICE_URL=${VITE_ML_SERVICE_URL}
-ENV NODE_ENV=${NODE_ENV}
-
 COPY package*.json ./
 RUN npm ci
 

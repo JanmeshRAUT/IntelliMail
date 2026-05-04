@@ -1,0 +1,8 @@
+Model Evaluation Metrics
+========================
+
+Test Loss: 0.673188
+Test Accuracy: 0.600000
+Test Precision: 0.000000
+Test Recall: 0.000000
+Test F1 Score: 0.000000

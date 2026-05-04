@@ -4,19 +4,36 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { google } from 'googleapis';
 import dotenv from 'dotenv';
-import { analyzeThreadEmails, analyzeMultipleThreads } from './src/lib/securityService.js';
+import { 
+  analyzeThreadEmails, 
+  analyzeMultipleThreads, 
+  analyzeThreadEmailsWithMl, 
+  analyzeMultipleThreadsWithMl 
+} from './src/lib/securityService.js';
 import { connectDB, disconnectDB } from './src/lib/db.js';
 import * as dbService from './src/lib/dbService.js';
 import type { Thread } from './src/lib/types.js';
+
+import client from 'prom-client';
 
 dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// Initialize Prometheus metrics
+const register = new client.Registry();
+client.collectDefaultMetrics({ register });
+
 async function startServer() {
   const app = express();
-  const PORT = 3000;
+  const PORT = process.env.PORT || 3000;
+
+  // Prometheus metrics endpoint
+  app.get('/metrics', async (req, res) => {
+    res.set('Content-Type', register.contentType);
+    res.end(await register.metrics());
+  });
 
   // Connect to MongoDB
   try {
@@ -56,6 +73,52 @@ async function startServer() {
     return `${sender} started "${subject}". Latest context: ${snippet}`;
   }
 
+  // Hugging Face API integration for threat detection
+  async function analyzeWithHuggingFace(emails: Array<{ subject?: string; body?: string; snippet?: string }>) {
+    try {
+      const text = emails
+        .map((email) => `${email.subject || ''} ${email.body || ''}`)
+        .join('\n');
+
+      const mlServiceUrl = process.env.ML_SERVICE_URL || 'https://JerryJR1705-intellmail.hf.space';
+      const hfResponse = await fetch(`${mlServiceUrl}/predict-email`, {
+        headers: { 
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${process.env.HUGGINGFACE_API_KEY}` 
+        },
+        method: 'POST',
+        body: JSON.stringify({ text }),
+      });
+
+      if (!hfResponse.ok) {
+        const errorText = await hfResponse.text();
+        console.warn(`ML Service error (${hfResponse.status}): ${errorText.substring(0, 100)}`);
+        return null;
+      }
+
+      const result = await hfResponse.json();
+      return result;
+    } catch (error) {
+      console.warn('ML analysis failed:', error);
+      return null;
+    }
+  }
+
+  // Local fallback threat detection (used when HF is unavailable)
+  function localThreatDetection(emails: Array<{ subject?: string; body?: string; snippet?: string }>) {
+    const allText = emails
+      .map((email: { subject?: string; body?: string; snippet?: string }) => `${email.subject || ''} ${email.body || ''} ${email.snippet || ''}`)
+      .join(' ')
+      .toLowerCase();
+
+    const threats = threatKeywords.filter((word) => allText.includes(word));
+    const category = classifyCategory(emails[0]?.subject || '', allText);
+    const sentiment = classifySentiment(allText);
+    const priority = threats.length > 0 ? 'High' : category === 'Work' ? 'Medium' : 'Low';
+
+    return { threats, category, sentiment, priority };
+  }
+
   // API Routes
   app.post('/api/analyze', async (req, res) => {
     const { emails } = req.body;
@@ -64,24 +127,43 @@ async function startServer() {
     }
 
     try {
-      const allText = emails
-        .map((email: { subject?: string; body?: string; snippet?: string }) => `${email.subject || ''} ${email.body || ''} ${email.snippet || ''}`)
-        .join(' ')
-        .toLowerCase();
+      // Try Hugging Face analysis first
+      const hfAnalysis = await analyzeWithHuggingFace(emails);
+      
+      let analysis;
+      if (hfAnalysis) {
+        // Use Hugging Face results
+        console.log('Using Hugging Face analysis');
+        const allText = emails
+          .map((email: { subject?: string; body?: string; snippet?: string }) => `${email.subject || ''} ${email.body || ''}`)
+          .join(' ')
+          .toLowerCase();
+        
+        // Extract threat information from HF response
+        const threats = hfAnalysis.prediction === 'phishing' ? ['Phishing detected by ML model'] : 
+                        hfAnalysis.prediction === 'spam' ? ['Spam detected by ML model'] :
+                        threatKeywords.filter((word) => allText.includes(word));
+        
+        analysis = {
+          category: classifyCategory(emails[0]?.subject || '', allText),
+          sentiment: classifySentiment(allText),
+          priority: threats.length > 0 ? 'High' : 'Medium',
+          threats,
+          summary: summarizeThread(emails),
+          source: 'huggingface',
+        };
+      } else {
+        // Fallback to local analysis
+        console.log('Using local analysis (Hugging Face unavailable)');
+        const localAnalysis = localThreatDetection(emails);
+        analysis = {
+          ...localAnalysis,
+          summary: summarizeThread(emails),
+          source: 'local',
+        };
+      }
 
-      const threats = threatKeywords.filter((word) => allText.includes(word));
-      const category = classifyCategory(emails[0]?.subject || '', allText);
-      const sentiment = classifySentiment(allText);
-      const priority = threats.length > 0 ? 'High' : category === 'Work' ? 'Medium' : 'Low';
-      const summary = summarizeThread(emails);
-
-      res.json({
-        category,
-        sentiment,
-        priority,
-        threats,
-        summary,
-      });
+      res.json(analysis);
     } catch (error) {
       console.error('Analysis error:', error);
       res.status(500).json({ error: 'Thread analysis failed' });
@@ -163,26 +245,55 @@ async function startServer() {
     }
 
     try {
-      // Analyze the thread
-      const analysis = analyzeThreadEmails(thread as Thread);
+      // Analyze the thread using ML-backed service
+      const analysis = await analyzeThreadEmailsWithMl(thread as Thread);
 
       // Save to MongoDB if userId provided
       if (userId) {
         try {
           await dbService.saveThreadAnalysis(userId, thread.threadId, analysis);
           
-          // Log high-risk threats
-          if (analysis.overallRiskLevel === 'High') {
-            const firstEmail = thread.emails[0];
-            await dbService.logThreat(
-              userId,
-              thread.threadId,
-              firstEmail.id,
-              analysis.attackType || 'Unknown',
-              'High',
-              analysis.emails[0]?.explanation || '',
-              firstEmail.from
-            );
+          // Detailed logging for URLs and flagged content
+          for (const emailAnalysis of analysis.emails) {
+            // 1. Log every URL analyzed
+            if (emailAnalysis.linkAnalysis && emailAnalysis.linkAnalysis.length > 0) {
+              for (const link of emailAnalysis.linkAnalysis) {
+                await dbService.saveAnalyzedUrl(
+                  userId,
+                  link.url,
+                  link.domain,
+                  link.phishingDetected,
+                  link.phishingDetected ? 'Phishing' : undefined,
+                  link.confidence
+                );
+              }
+            }
+
+            // 2. Log Flagged Content
+            if (emailAnalysis.riskLevel !== 'Low') {
+              await dbService.logFlaggedContent(
+                userId,
+                emailAnalysis.emailId,
+                emailAnalysis.explanation,
+                emailAnalysis.attackType || 'Suspicious Content',
+                emailAnalysis.riskLevel
+              );
+            }
+
+            // 3. Log threats for historical tracking
+            if (emailAnalysis.threats && emailAnalysis.threats.length > 0) {
+              for (const threat of emailAnalysis.threats) {
+                await dbService.logThreat(
+                  userId,
+                  thread.threadId,
+                  emailAnalysis.emailId,
+                  threat,
+                  emailAnalysis.riskLevel,
+                  `Analysis detected: ${threat}`,
+                  emailAnalysis.sender
+                );
+              }
+            }
           }
         } catch (dbError) {
           console.error('Database save error (non-blocking):', dbError);
@@ -210,13 +321,25 @@ async function startServer() {
     }
 
     try {
-      const analyses = analyzeMultipleThreads(threads as Thread[]);
+      const analyses = await analyzeMultipleThreadsWithMl(threads as Thread[]);
 
       // Save all analyses to MongoDB if userId provided
       if (userId) {
         try {
           for (const analysis of analyses) {
             await dbService.saveThreadAnalysis(userId, analysis.threadId, analysis);
+            
+            // Log URLs and flagged content for batch results too
+            for (const emailAnalysis of analysis.emails) {
+              if (emailAnalysis.linkAnalysis && emailAnalysis.linkAnalysis.length > 0) {
+                for (const link of emailAnalysis.linkAnalysis) {
+                  await dbService.saveAnalyzedUrl(userId, link.url, link.domain, link.phishingDetected, link.phishingDetected ? 'Phishing' : undefined, link.confidence);
+                }
+              }
+              if (emailAnalysis.riskLevel !== 'Low') {
+                await dbService.logFlaggedContent(userId, emailAnalysis.emailId, emailAnalysis.explanation, emailAnalysis.attackType || 'Suspicious Content', emailAnalysis.riskLevel);
+              }
+            }
           }
         } catch (dbError) {
           console.error('Batch database save error (non-blocking):', dbError);

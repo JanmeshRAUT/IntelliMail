@@ -2,9 +2,8 @@ version: '3.8'
 services:
   mongodb:
     image: mongo:7.0
-    container_name: intellimail-mongodb
     ports:
-      - "27017:27017"
+      - "${MONGO_PORT:-27017}:27017"
     environment:
       MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER:-admin}
       MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD:-password}
@@ -12,18 +11,18 @@ services:
     volumes:
       - mongodb_data:/data/db
     restart: always
-    networks:
-      - intellimail-network
 
   app:
     build:
       context: .
       dockerfile: docker/frontend.Dockerfile
-    container_name: intellimail-app
+      args:
+        - VITE_GOOGLE_CLIENT_ID=${VITE_GOOGLE_CLIENT_ID}
     ports:
-      - "3000:3000"
+      - "${APP_PORT:-3000}:3000"
     environment:
       - NODE_ENV=production
+      - PORT=3000
       - APP_URL=${APP_URL}
       - MONGODB_URI=mongodb://${MONGO_USER:-admin}:${MONGO_PASSWORD:-password}@mongodb:27017/intellimail?authSource=admin
       - MONGO_USER=${MONGO_USER:-admin}
@@ -31,12 +30,22 @@ services:
     depends_on:
       - mongodb
     restart: always
-    networks:
-      - intellimail-network
+
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "${PROM_PORT:-9090}:9090"
+    volumes:
+      - ./docker/prometheus.yml:/etc/prometheus/prometheus.yml
+
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "${GRAFANA_PORT:-3000}:3000"
+    depends_on:
+      - prometheus
+    volumes:
+      - ./docker/grafana/provisioning:/etc/grafana/provisioning
 
 volumes:
   mongodb_data:
-
-networks:
-  intellimail-network:
-    driver: bridge

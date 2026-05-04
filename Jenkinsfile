@@ -94,7 +94,6 @@ pipeline {
                     """
 
                     echo "Deployed: ${env.IMAGE_NAME}:${env.VERSION}"
-                    echo "Container running on port 5000 (mapped to 3000)"
                 }
             }
         }
@@ -106,13 +105,7 @@ pipeline {
                     echo "Branch ${env.BRANCH_NAME}: Building application in Docker..."
 
                     bat """
-                    docker build ^
-                    -f docker/frontend.Dockerfile ^
-                    --build-arg VITE_API_URL=${env.VITE_API_URL} ^
-                    --build-arg VITE_GOOGLE_CLIENT_ID=${env.VITE_GOOGLE_CLIENT_ID} ^
-                    --build-arg VITE_ML_SERVICE_URL=${env.VITE_ML_SERVICE_URL} ^
-                    --build-arg NODE_ENV=${env.NODE_ENV} ^
-                    -t ${env.IMAGE_NAME}:${env.IMAGE_TAG} . || exit /b
+                    docker build -f docker/frontend.Dockerfile -t ${env.IMAGE_NAME}:${env.IMAGE_TAG} . || exit /b
                     echo Build completed successfully for feature branch
                     """
                 }

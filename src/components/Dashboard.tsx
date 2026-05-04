@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, RefreshCw, Inbox, ShieldAlert, Shield, Moon, Sun } from 'lucide-react';
+import { Search, RefreshCw, Inbox, ShieldAlert, Shield } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
@@ -16,11 +16,9 @@ import {
   Thread,
   upsertEmails,
   upsertThreads,
+  getUser
 } from '../lib/localData';
 import { requestGoogleAccessToken } from '../lib/googleAuth';
-import { SecurityDashboard } from './SecurityDashboard';
-import type { Thread as SecurityThread, Email as SecurityEmail } from '../lib/types';
-import { analyzeMultipleThreadsWithMl } from '../lib/securityService';
 
 export default function Dashboard() {
   const [threads, setThreads] = useState<Thread[]>([]);
@@ -30,7 +28,8 @@ export default function Dashboard() {
   const [filter, setFilter] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
   const [syncError, setSyncError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'inbox' | 'security'>('inbox');
+  const [scanProgress, setScanProgress] = useState(0);
+  const [scanStatus, setScanStatus] = useState('');
   const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 
   useEffect(() => {
@@ -77,77 +76,102 @@ export default function Dashboard() {
     };
 
     const syncWithToken = async (accessToken: string) => {
-      const response = await axios.post('/api/gmail/fetch', { accessToken });
-      const emails = response.data as Email[];
+      try {
+        setScanProgress(10);
+        setScanStatus('Fetching emails...');
+        
+        const response = await axios.post('/api/gmail/fetch', { accessToken });
+        const emails = response.data as Email[];
 
-      // Group by threadId
-      const groupedThreads: Record<string, Email[]> = {};
-      emails.forEach((email) => {
-        if (!groupedThreads[email.threadId]) groupedThreads[email.threadId] = [];
-        groupedThreads[email.threadId].push(email);
-      });
-
-      const nextThreads: Thread[] = [];
-      const nextAlerts: Alert[] = [];
-
-      for (const threadId in groupedThreads) {
-        const threadEmails = groupedThreads[threadId];
-        const latestEmail = threadEmails[0];
-
-        // Analyze thread
-        const analysisRes = await axios.post('/api/analyze', { emails: threadEmails });
-        const analysis = analysisRes.data as ThreadAnalysis;
-
-        nextThreads.push({
-          id: threadId,
-          subject: latestEmail.subject,
-          lastMessageTimestamp: latestEmail.timestamp,
-          analysis,
+        const groupedThreads: Record<string, Email[]> = {};
+        emails.forEach((email) => {
+          if (!groupedThreads[email.threadId]) groupedThreads[email.threadId] = [];
+          groupedThreads[email.threadId].push(email);
         });
 
-        // Create alerts from analysis output
-        if (analysis.threats && analysis.threats.length > 0) {
-          nextAlerts.push({
-            id: `${threadId}-threat-${Date.now()}`,
-            type: 'Threat',
-            message: `Security threat detected in thread: ${latestEmail.subject}`,
-            threadId,
-            timestamp: new Date().toISOString(),
-          });
-        } else if (analysis.priority === 'High') {
-          nextAlerts.push({
-            id: `${threadId}-urgent-${Date.now()}`,
-            type: 'Urgent',
-            message: `Urgent email detected: ${latestEmail.subject}`,
-            threadId,
-            timestamp: new Date().toISOString(),
-          });
-        }
-      }
+        const threadCount = Object.keys(groupedThreads).length;
+        const nextThreads: Thread[] = [];
+        const nextAlerts: Alert[] = [];
 
-      upsertEmails(emails);
-      upsertThreads(nextThreads);
-      if (nextAlerts.length > 0) {
-        pushAlerts(nextAlerts);
+        let analyzed = 0;
+        for (const threadId in groupedThreads) {
+          const threadEmails = groupedThreads[threadId];
+          const latestEmail = threadEmails[0];
+
+          setScanProgress(15 + (analyzed / threadCount) * 75);
+          setScanStatus(`Analyzing ${analyzed + 1}/${threadCount}`);
+
+          const user = getUser();
+          const analysisRes = await axios.post('/api/analyze', { 
+            emails: threadEmails,
+            userId: user?.id 
+          });
+          const analysis = analysisRes.data as ThreadAnalysis;
+
+          nextThreads.push({
+            id: threadId,
+            subject: latestEmail.subject,
+            lastMessageTimestamp: latestEmail.timestamp,
+            analysis,
+          });
+
+          if (analysis.threats && analysis.threats.length > 0) {
+            nextAlerts.push({
+              id: `${threadId}-threat-${Date.now()}`,
+              type: 'Threat',
+              message: `Security threat detected in thread: ${latestEmail.subject}`,
+              threadId,
+              timestamp: new Date().toISOString(),
+            });
+          } else if (analysis.priority === 'High') {
+            nextAlerts.push({
+              id: `${threadId}-urgent-${Date.now()}`,
+              type: 'Urgent',
+              message: `Urgent email detected: ${latestEmail.subject}`,
+              threadId,
+              timestamp: new Date().toISOString(),
+            });
+          }
+          
+          analyzed++;
+        }
+
+        setScanProgress(95);
+        setScanStatus('Finalizing...');
+
+        upsertEmails(emails);
+        upsertThreads(nextThreads);
+        if (nextAlerts.length > 0) {
+          pushAlerts(nextAlerts);
+        }
+
+        setScanProgress(100);
+        setScanStatus('Done!');
+        setTimeout(() => {
+          setScanProgress(0);
+          setScanStatus('');
+        }, 2000);
+      } catch (error) {
+        console.error('Analysis error:', error);
+        setScanProgress(0);
+        setScanStatus('');
+        throw error;
       }
     };
 
     try {
       let accessToken = getAccessToken();
 
-      // Only refresh if token is missing or expired
       if (!accessToken) {
         accessToken = await refreshToken(false);
         if (!accessToken) {
           accessToken = await refreshToken(true);
         }
       } else if (isAccessTokenExpired()) {
-        // Token is expired, attempt silent refresh first
         const refreshedToken = await refreshToken(false);
         if (refreshedToken) {
           accessToken = refreshedToken;
         } else {
-          // Silent refresh failed, try interactive re-consent
           accessToken = await refreshToken(true);
         }
       }
@@ -176,234 +200,190 @@ export default function Dashboard() {
 
   const filteredThreads = threads.filter(t => {
     const matchesSearch = t.subject.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesFilter = filter === 'All' || t.analysis?.category === filter;
+    const matchesFilter = filter === 'All' || t.analysis?.priority === filter;
     return matchesSearch && matchesFilter;
+  }).sort((a, b) => {
+    const priorityOrder = { 'High': 0, 'Medium': 1, 'Low': 2 };
+    const aPriority = priorityOrder[a.analysis?.priority as keyof typeof priorityOrder] ?? 3;
+    const bPriority = priorityOrder[b.analysis?.priority as keyof typeof priorityOrder] ?? 3;
+    
+    if (aPriority !== bPriority) return aPriority - bPriority;
+    
+    const aThreats = a.analysis?.threats?.length ?? 0;
+    const bThreats = b.analysis?.threats?.length ?? 0;
+    return bThreats - aThreats;
   });
 
-  // Convert localData threads to security analysis format
-  const convertToSecurityThreads = (): SecurityThread[] => {
-    return threads.map(thread => {
-      const threadEmails = emails.filter(e => e.threadId === thread.id);
-      
-      // Extract participants from email addresses
-      const participants = new Set<string>();
-      threadEmails.forEach(email => {
-        participants.add(email.from);
-        email.snippet; // Just to avoid unused variable warning
-      });
-
-      return {
-        threadId: thread.id,
-        emails: threadEmails as SecurityEmail[],
-        participants: Array.from(participants),
-      };
-    });
+  const threatStats = {
+    total: threads.length,
+    critical: threads.filter(t => t.analysis?.priority === 'High' && t.analysis?.threats && t.analysis.threats.length > 0).length,
+    high: threads.filter(t => t.analysis?.priority === 'High').length,
   };
 
-  const securityThreads = convertToSecurityThreads();
-
   return (
-    <div className="flex flex-col h-screen bg-[var(--background)] text-[var(--foreground)] transition-colors duration-300">
-      {/* Tab Navigation */}
-      <div className="border-b border-[var(--border)] bg-[var(--card)] shadow-sm sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto px-8">
-          <div className="flex items-center gap-1">
-            <button
-              onClick={() => setActiveTab('inbox')}
-              className={cn(
-                "flex items-center gap-2 px-6 py-4 text-sm font-bold border-b-2 transition-all",
-                activeTab === 'inbox'
-                  ? "text-primary-600 border-primary-600"
-                  : "text-[var(--muted-foreground)] border-transparent hover:text-[var(--foreground)]"
-              )}
-            >
-              <Inbox className="w-4 h-4" />
-              Inbox View
-            </button>
-            <button
-              onClick={() => setActiveTab('security')}
-              className={cn(
-                "flex items-center gap-2 px-6 py-4 text-sm font-bold border-b-2 transition-all",
-                activeTab === 'security'
-                  ? "text-primary-600 border-primary-600"
-                  : "text-[var(--muted-foreground)] border-transparent hover:text-[var(--foreground)]"
-              )}
-            >
-              <Shield className="w-4 h-4" />
-              Security Analysis
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Tab Content */}
-      <div className="flex-1 overflow-auto">
-        {activeTab === 'inbox' ? (
-          // Inbox View (Original)
-          <div className="p-8 max-w-6xl mx-auto space-y-10">
-            <header className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-              <div>
-                <h1 className="text-4xl font-extrabold tracking-tight">Inbox Insights</h1>
-                <p className="text-[var(--muted-foreground)] font-medium">AI-powered conversation intelligence</p>
-              </div>
-              <div className="flex items-center gap-3">
-                <button 
-                  onClick={fetchEmails}
-                  disabled={refreshing}
-                  className="flex items-center gap-2.5 px-6 py-3 bg-primary-600 text-white rounded-xl font-bold hover:bg-primary-700 shadow-lg shadow-primary-500/20 transition-all disabled:opacity-50"
-                >
-                  <RefreshCw className={cn("w-4 h-4", refreshing && "animate-spin")} />
-                  {refreshing ? 'Processing...' : 'Sync Gmail'}
-                </button>
-              </div>
-            </header>
-
-            <div className="flex flex-col md:flex-row gap-6">
-              <div className="relative flex-1 group">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[var(--muted-foreground)] transition-colors group-focus-within:text-primary-500" />
-                <input 
-                  type="text" 
-                  placeholder="Search through analyzed threads..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-12 pr-4 py-3.5 bg-[var(--card)] text-[var(--foreground)] border border-[var(--border)] rounded-2xl focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500 outline-none transition-all shadow-sm font-medium placeholder:text-[var(--muted-foreground)]/50"
-                />
-              </div>
-              <div className="flex gap-2 overflow-x-auto pb-2 md:pb-0 scrollbar-hide">
-                {['All', 'Work', 'Personal', 'Promotions', 'Spam'].map((f) => (
-                  <button
-                    key={f}
-                    onClick={() => setFilter(f)}
-                    className={cn(
-                      "px-5 py-2.5 rounded-2xl text-sm font-bold transition-all whitespace-nowrap border-2",
-                      filter === f 
-                      ? "bg-primary-600 text-white border-primary-600 shadow-lg shadow-primary-500/20" 
-                      : "bg-[var(--card)] text-[var(--muted-foreground)] border-[var(--border)] hover:border-primary-300"
-                    )}
-                  >
-                    {f}
-                  </button>
-                ))}
-              </div>
+    <div className="flex flex-col h-full bg-[var(--background)]">
+      {/* Top Header */}
+      <header className="sticky top-0 z-20 bg-[var(--background)]/80 backdrop-blur-md border-b border-[var(--border)] px-8 py-6">
+        <div className="max-w-6xl mx-auto">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+            <div>
+              <h1 className="text-3xl font-black tracking-tight">Intelligence Feed</h1>
+              <p className="text-[var(--muted-foreground)] text-sm font-medium">Real-time Gmail threat analysis</p>
             </div>
 
-            {syncError && (
-              <div className="px-6 py-4 rounded-2xl bg-red-50 border border-red-200 text-red-700 dark:bg-red-500/10 dark:border-red-500/20 dark:text-red-400 text-sm font-semibold flex items-center gap-3">
-                <ShieldAlert className="w-5 h-5 shrink-0" />
-                {syncError}
+            <div className="flex items-center gap-4">
+              {/* Compact Stats */}
+              <div className="hidden sm:flex gap-2">
+                <div className="px-4 py-2 bg-red-500/10 border border-red-500/20 rounded-xl text-center">
+                  <p className="text-lg font-black text-red-600">{threatStats.critical}</p>
+                  <p className="text-[9px] font-bold text-red-700/60 uppercase tracking-widest">Critical</p>
+                </div>
+                <div className="px-4 py-2 bg-orange-500/10 border border-orange-500/20 rounded-xl text-center">
+                  <p className="text-lg font-black text-orange-600">{threatStats.high}</p>
+                  <p className="text-[9px] font-bold text-orange-700/60 uppercase tracking-widest">High</p>
+                </div>
               </div>
-            )}
 
-            {loading ? (
-              <div className="grid grid-cols-1 gap-6">
-                {[1, 2, 3].map(i => (
-                  <div key={i} className="h-32 bg-[var(--card)] animate-pulse rounded-3xl border border-[var(--border)]" />
-                ))}
+              <button 
+                onClick={fetchEmails}
+                disabled={refreshing}
+                className="flex items-center gap-2 px-6 py-3 bg-primary-600 text-white rounded-xl font-bold hover:bg-primary-700 shadow-lg shadow-primary-500/20 transition-all disabled:opacity-50"
+              >
+                <RefreshCw className={cn("w-4 h-4", refreshing && "animate-spin")} />
+                {refreshing ? 'Scanning...' : 'Scan Gmail'}
+              </button>
+            </div>
+          </div>
+
+          {(refreshing || scanProgress > 0) && (
+            <motion.div 
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mt-6 bg-[var(--card)] border border-[var(--border)] rounded-xl p-4 shadow-xl space-y-2"
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-primary-600">{scanStatus || 'Processing...'}</span>
+                <span className="text-[10px] font-black text-primary-600">{Math.round(scanProgress)}%</span>
               </div>
+              <div className="w-full h-1 bg-[var(--secondary)] rounded-full overflow-hidden">
+                <motion.div 
+                  initial={{ width: 0 }}
+                  animate={{ width: `${Math.min(scanProgress, 100)}%` }}
+                  className="h-full bg-primary-600"
+                />
+              </div>
+            </motion.div>
+          )}
+        </div>
+      </header>
+
+      <div className="flex-1 overflow-auto p-8">
+        <div className="max-w-6xl mx-auto space-y-8">
+          <div className="flex flex-col md:flex-row gap-4">
+            <div className="relative flex-1 group">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--muted-foreground)]" />
+              <input 
+                type="text" 
+                placeholder="Search threats..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-10 pr-4 py-3 bg-[var(--card)] border border-[var(--border)] rounded-xl focus:ring-4 focus:ring-primary-500/10 outline-none transition-all text-sm font-medium shadow-sm"
+              />
+            </div>
+            <div className="flex gap-2">
+              {['All', 'High', 'Medium'].map((f) => (
+                <button
+                  key={f}
+                  onClick={() => setFilter(f)}
+                  className={cn(
+                    "px-5 py-2.5 rounded-xl text-xs font-bold transition-all border",
+                    filter === f 
+                      ? "bg-[var(--foreground)] text-[var(--background)] border-[var(--foreground)] shadow-lg shadow-black/5" 
+                      : "bg-[var(--card)] text-[var(--muted-foreground)] border-[var(--border)] hover:border-primary-300"
+                  )}
+                >
+                  {f}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {syncError && (
+            <div className="px-6 py-4 rounded-xl bg-red-50 border border-red-200 text-red-700 dark:bg-red-500/10 dark:border-red-500/20 dark:text-red-400 text-xs font-bold flex items-center gap-3">
+              <ShieldAlert className="w-4 h-4" />
+              {syncError}
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 gap-4">
+            {loading ? (
+              [1, 2, 3].map(i => (
+                <div key={i} className="h-32 bg-[var(--card)] animate-pulse rounded-2xl border border-[var(--border)]" />
+              ))
             ) : (
-              <div className="grid grid-cols-1 gap-6">
-                <AnimatePresence mode="popLayout">
-                  {filteredThreads.map((thread) => (
+              <AnimatePresence mode="popLayout">
+                {filteredThreads.map((thread) => {
+                  const hasThreats = thread.analysis?.threats && thread.analysis.threats.length > 0;
+                  return (
                     <motion.div
                       key={thread.id}
                       layout
-                      initial={{ opacity: 0, y: 20 }}
+                      initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, scale: 0.95 }}
-                      transition={{ duration: 0.3 }}
+                      exit={{ opacity: 0, scale: 0.98 }}
                     >
                       <Link 
                         to={`/thread/${thread.id}`}
                         className={cn(
-                          "block p-8 bg-[var(--card)] border rounded-3xl hover:shadow-xl hover:-translate-y-1 transition-all group relative overflow-hidden",
-                          thread.analysis?.priority === 'High' 
-                          ? "border-red-500/30 bg-red-50/10 dark:bg-red-500/5" 
-                          : "border-[var(--border)]"
+                          "block p-6 bg-[var(--card)] border border-[var(--border)] rounded-2xl hover:border-primary-500/50 hover:shadow-xl transition-all group relative overflow-hidden",
+                          hasThreats && "border-red-500/30 bg-red-50/10 dark:bg-red-500/5"
                         )}
                       >
-                        {thread.analysis?.priority === 'High' && (
-                          <div className="absolute top-0 left-0 w-1.5 h-full bg-red-500 shadow-[0_0_15px_rgba(239,68,68,0.5)]" />
-                        )}
-                        
-                        <div className="flex flex-col md:flex-row md:items-start justify-between gap-6">
-                          <div className="space-y-3 flex-1 min-w-0">
-                            <div className="flex items-center gap-3">
-                              <h3 className="font-bold text-xl text-[var(--foreground)] group-hover:text-primary-600 transition-colors truncate">
+                        <div className="flex flex-col gap-4">
+                          <div className="flex justify-between items-start gap-4">
+                            <div className="space-y-1 min-w-0">
+                              <h3 className="font-bold text-lg text-[var(--foreground)] group-hover:text-primary-600 transition-colors truncate">
                                 {thread.subject}
                               </h3>
-                              {thread.analysis?.threats && thread.analysis.threats.length > 0 && (
-                                <div className="px-2 py-1 bg-red-500/10 rounded-lg">
-                                  <ShieldAlert className="w-5 h-5 text-red-500" />
-                                </div>
-                              )}
+                              <p className="text-[var(--muted-foreground)] text-xs line-clamp-1 font-medium opacity-70">
+                                {thread.analysis?.summary || "No analysis available."}</p>
                             </div>
-                            <p className="text-[var(--muted-foreground)] text-sm leading-relaxed font-medium line-clamp-2 md:line-clamp-1">
-                              {thread.analysis?.summary || "No analysis available yet. Tap Sync Gmail to process."}
-                            </p>
-                          </div>
-                          
-                          <div className="flex flex-row md:flex-col items-center md:items-end justify-between gap-4 shrink-0">
-                            <span className="text-[11px] text-[var(--muted-foreground)] font-bold tracking-wider uppercase">
-                              {new Date(thread.lastMessageTimestamp).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+                            <span className={cn(
+                              "px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest border shrink-0",
+                              hasThreats ? "bg-red-500 text-white border-red-600" :
+                              thread.analysis?.priority === 'High' ? "bg-orange-500 text-white border-orange-600" :
+                              "bg-[var(--secondary)] text-[var(--muted-foreground)] border-[var(--border)]"
+                            )}>
+                              {hasThreats ? 'Threat' : thread.analysis?.priority === 'High' ? 'High' : 'Safe'}
                             </span>
-                            <div className="flex gap-2">
-                              {thread.analysis && (
-                                <>
-                                  <span className={cn(
-                                    "px-3 py-1.5 rounded-xl text-[10px] font-extrabold uppercase tracking-widest border",
-                                    thread.analysis.category === 'Work' ? "bg-blue-600 text-white border-blue-700 dark:bg-blue-500/20 dark:text-blue-300 dark:border-blue-500/30" :
-                                    thread.analysis.category === 'Personal' ? "bg-emerald-600 text-white border-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300 dark:border-emerald-500/30" :
-                                    thread.analysis.category === 'Spam' ? "bg-red-600 text-white border-red-700 dark:bg-red-500/20 dark:text-red-300 dark:border-red-500/30" :
-                                    thread.analysis.category === 'Promotions' ? "bg-purple-600 text-white border-purple-700 dark:bg-purple-500/20 dark:text-purple-300 dark:border-purple-500/30" :
-                                    "bg-[var(--secondary)] text-[var(--muted-foreground)] border-[var(--border)]"
-                                  )}>
-                                    {thread.analysis.category}
-                                  </span>
-                                  <span className={cn(
-                                    "px-3 py-1.5 rounded-xl text-[10px] font-extrabold uppercase tracking-widest border",
-                                    thread.analysis.sentiment === 'Positive' ? "bg-teal-600 text-white border-teal-700 dark:bg-teal-500/20 dark:text-teal-300 dark:border-teal-500/30" :
-                                    thread.analysis.sentiment === 'Negative' ? "bg-rose-600 text-white border-rose-700 dark:bg-rose-500/20 dark:text-rose-300 dark:border-rose-500/30" :
-                                    "bg-[var(--secondary)] text-[var(--muted-foreground)] border-[var(--border)]"
-                                  )}>
-                                    {thread.analysis.sentiment}
-                                  </span>
-                                </>
-                              )}
-                            </div>
+                          </div>
+                          <div className="flex items-center justify-between pt-4 border-t border-[var(--border)]">
+                            <span className="text-[10px] text-[var(--muted-foreground)] font-bold uppercase tracking-wider">
+                              {new Date(thread.lastMessageTimestamp).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                            </span>
+                            {thread.analysis?.category && (
+                              <span className="text-[10px] font-black uppercase text-primary-600 tracking-[0.2em]">
+                                {thread.analysis.category}
+                              </span>
+                            )}
                           </div>
                         </div>
                       </Link>
                     </motion.div>
-                  ))}
-                </AnimatePresence>
-                
-                {filteredThreads.length === 0 && !loading && (
-                  <motion.div 
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    className="text-center py-24 space-y-6 bg-[var(--card)] border border-[var(--border)] rounded-[2rem] border-dashed"
-                  >
-                    <div className="inline-flex p-6 bg-[var(--secondary)] rounded-3xl text-primary-500">
-                      <Inbox className="w-10 h-10" />
-                    </div>
-                    <div className="space-y-2">
-                      <h3 className="text-2xl font-bold">Nothing found here</h3>
-                      <p className="text-[var(--muted-foreground)] max-w-sm mx-auto font-medium">Try syncing your account or adjusting your search filters to see more activity.</p>
-                    </div>
-                  </motion.div>
-                )}
+                  );
+                })}
+              </AnimatePresence>
+            )}
+
+            {filteredThreads.length === 0 && !loading && (
+              <div className="text-center py-24 bg-[var(--card)] border border-dashed border-[var(--border)] rounded-2xl">
+                <Inbox className="w-10 h-10 text-[var(--muted-foreground)] mx-auto mb-4 opacity-20" />
+                <p className="text-[var(--muted-foreground)] font-bold tracking-tight">No intelligence data found</p>
+                <p className="text-[var(--muted-foreground)] text-xs mt-1">Try refreshing or adjusting filters</p>
               </div>
             )}
           </div>
-        ) : (
-          // Security Analysis View
-          <div className="p-8">
-            <SecurityDashboard 
-              threads={securityThreads}
-              onAnalyzeThreads={async (threadsToAnalyze) => analyzeMultipleThreadsWithMl(threadsToAnalyze)}
-            />
-          </div>
-        )}
+        </div>
       </div>
     </div>
   );
