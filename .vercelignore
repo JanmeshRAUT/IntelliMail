@@ -1,0 +1,45 @@
+# Python/ML backend
+ml-model/
+docker/
+Dockerfile
+docker-compose.yml
+*.py
+
+# Development files
+.venv
+venv
+__pycache__
+*.pyc
+.pytest_cache
+
+# Git files
+.git
+.gitignore
+
+# Node
+node_modules
+.npm
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build artifacts
+build/
+artifacts/
+*.egg-info/
+
+# Logs
+*.log
+logs/
+
+# Misc
+Jenkinsfile
+.env.local
+.env.*.local
