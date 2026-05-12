@@ -1,16 +1,5 @@
 {
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
-  "framework": "vite",
-  "env": [
-    "VITE_GOOGLE_CLIENT_ID",
-    "VITE_ML_SERVICE_URL",
-    "VITE_LSTM_SERVICE_URL",
-    "DATABASEURL"
-  ],
-  "functions": {
-    "server.ts": {
-      "runtime": "nodejs20.x"
-    }
-  }
+  "framework": "vite"
 }
