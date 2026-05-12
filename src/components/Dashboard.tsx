@@ -19,6 +19,7 @@ import {
   getUser
 } from '../lib/localData';
 import { requestGoogleAccessToken } from '../lib/googleAuth';
+import { fetchGmailEmails, analyzeEmailsWithHF, GmailEmail } from '../lib/gmailClient';
 
 export default function Dashboard() {
   const [threads, setThreads] = useState<Thread[]>([]);
@@ -31,6 +32,8 @@ export default function Dashboard() {
   const [scanProgress, setScanProgress] = useState(0);
   const [scanStatus, setScanStatus] = useState('');
   const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+  const hfApiKey = import.meta.env.VITE_HUGGINGFACE_API_KEY || '';
+  const mlServiceUrl = import.meta.env.VITE_ML_SERVICE_URL || 'https://JerryJR1705-intellmail.hf.space';
 
   useEffect(() => {
     const hydrateData = () => {
@@ -42,6 +45,19 @@ export default function Dashboard() {
     hydrateData();
     window.addEventListener('intellimail:data-updated', hydrateData);
     return () => window.removeEventListener('intellimail:data-updated', hydrateData);
+  }, []);
+
+  // Auto-sync after login (no auth popup)
+  useEffect(() => {
+    const autoSync = async () => {
+      const token = getAccessToken();
+      if (token && !isAccessTokenExpired()) {
+        // Auto-sync without manual trigger
+        // Uncomment below to auto-sync on page load
+        // await fetchEmails();
+      }
+    };
+    autoSync();
   }, []);
 
   const fetchEmails = async () => {
@@ -57,7 +73,7 @@ export default function Dashboard() {
       try {
         const tokenResponse = await requestGoogleAccessToken({
           clientId,
-          prompt: interactive ? 'consent' : '',
+          prompt: interactive ? 'consent' : 'none', // Use 'none' for silent refresh
         });
 
         if (!tokenResponse.access_token) {
@@ -78,13 +94,20 @@ export default function Dashboard() {
     const syncWithToken = async (accessToken: string) => {
       try {
         setScanProgress(10);
-        setScanStatus('Fetching emails...');
+        setScanStatus('Fetching emails from Gmail...');
         
-        const response = await axios.post('/api/gmail/fetch', { accessToken });
-        const emails = response.data as Email[];
+        // Use direct Gmail API (no backend required!)
+        const gmailEmails = await fetchGmailEmails(accessToken, 20);
+        
+        if (gmailEmails.length === 0) {
+          setScanProgress(100);
+          setScanStatus('No emails found');
+          setRefreshing(false);
+          return;
+        }
 
-        const groupedThreads: Record<string, Email[]> = {};
-        emails.forEach((email) => {
+        const groupedThreads: Record<string, GmailEmail[]> = {};
+        gmailEmails.forEach((email) => {
           if (!groupedThreads[email.threadId]) groupedThreads[email.threadId] = [];
           groupedThreads[email.threadId].push(email);
         });
@@ -101,35 +124,65 @@ export default function Dashboard() {
           setScanProgress(15 + (analyzed / threadCount) * 75);
           setScanStatus(`Analyzing ${analyzed + 1}/${threadCount}`);
 
-          const user = getUser();
-          const analysisRes = await axios.post('/api/analyze', { 
-            emails: threadEmails,
-            userId: user?.id 
-          });
-          const analysis = analysisRes.data as ThreadAnalysis;
+          try {
+            // Use Hugging Face directly for analysis (no backend required!)
+            const hfAnalysis = await analyzeEmailsWithHF(threadEmails, hfApiKey, mlServiceUrl);
 
-          nextThreads.push({
-            id: threadId,
-            subject: latestEmail.subject,
-            lastMessageTimestamp: latestEmail.timestamp,
-            analysis,
-          });
+            const analysis: ThreadAnalysis = {
+              priority: hfAnalysis.priority || 'Low',
+              threats: hfAnalysis.threats || [],
+              summary: hfAnalysis.summary || `Thread with ${threadEmails.length} emails`,
+              source: 'huggingface',
+              emails: threadEmails.map((e) => ({
+                emailId: e.id,
+                sender: e.from,
+                subject: e.subject,
+                riskLevel: hfAnalysis.priority || 'Low',
+                threats: hfAnalysis.threats || [],
+                explanation: hfAnalysis.summary || '',
+                timestamp: e.timestamp,
+                attackType: hfAnalysis.threats?.[0] || undefined,
+              })),
+            };
 
-          if (analysis.threats && analysis.threats.length > 0) {
-            nextAlerts.push({
-              id: `${threadId}-threat-${Date.now()}`,
-              type: 'Threat',
-              message: `Security threat detected in thread: ${latestEmail.subject}`,
-              threadId,
-              timestamp: new Date().toISOString(),
+            nextThreads.push({
+              id: threadId,
+              subject: latestEmail.subject,
+              lastMessageTimestamp: latestEmail.timestamp,
+              analysis,
             });
-          } else if (analysis.priority === 'High') {
-            nextAlerts.push({
-              id: `${threadId}-urgent-${Date.now()}`,
-              type: 'Urgent',
-              message: `Urgent email detected: ${latestEmail.subject}`,
-              threadId,
-              timestamp: new Date().toISOString(),
+
+            if (analysis.threats && analysis.threats.length > 0) {
+              nextAlerts.push({
+                id: `${threadId}-threat-${Date.now()}`,
+                type: 'Threat',
+                message: `Security threat detected: ${latestEmail.subject}`,
+                threadId,
+                timestamp: new Date().toISOString(),
+              });
+            } else if (analysis.priority === 'High') {
+              nextAlerts.push({
+                id: `${threadId}-urgent-${Date.now()}`,
+                type: 'Urgent',
+                message: `Urgent email: ${latestEmail.subject}`,
+                threadId,
+                timestamp: new Date().toISOString(),
+              });
+            }
+          } catch (analysisError) {
+            console.error('Analysis error for thread:', threadId, analysisError);
+            // Continue with error-free analysis
+            nextThreads.push({
+              id: threadId,
+              subject: latestEmail.subject,
+              lastMessageTimestamp: latestEmail.timestamp,
+              analysis: {
+                priority: 'Low',
+                threats: [],
+                summary: 'Analysis unavailable',
+                source: 'error',
+                emails: [],
+              },
             });
           }
           
@@ -139,7 +192,18 @@ export default function Dashboard() {
         setScanProgress(95);
         setScanStatus('Finalizing...');
 
-        upsertEmails(emails);
+        // Convert to Email format
+        const emailsForStorage: Email[] = gmailEmails.map((e) => ({
+          id: e.id,
+          threadId: e.threadId,
+          subject: e.subject,
+          from: e.from,
+          body: e.body,
+          snippet: e.snippet,
+          timestamp: e.timestamp,
+        }));
+
+        upsertEmails(emailsForStorage);
         upsertThreads(nextThreads);
         if (nextAlerts.length > 0) {
           pushAlerts(nextAlerts);
@@ -152,7 +216,7 @@ export default function Dashboard() {
           setScanStatus('');
         }, 2000);
       } catch (error) {
-        console.error('Analysis error:', error);
+        console.error('Sync error:', error);
         setScanProgress(0);
         setScanStatus('');
         throw error;
@@ -162,37 +226,30 @@ export default function Dashboard() {
     try {
       let accessToken = getAccessToken();
 
+      // Try silent refresh first (no popup)
       if (!accessToken) {
         accessToken = await refreshToken(false);
-        if (!accessToken) {
-          accessToken = await refreshToken(true);
-        }
       } else if (isAccessTokenExpired()) {
         const refreshedToken = await refreshToken(false);
         if (refreshedToken) {
           accessToken = refreshedToken;
-        } else {
-          accessToken = await refreshToken(true);
         }
+      }
+
+      // If still no token, request with popup
+      if (!accessToken) {
+        accessToken = await refreshToken(true);
       }
 
       if (!accessToken) {
+        setSyncError('Failed to authenticate. Please login again.');
         return;
       }
 
-      try {
-        await syncWithToken(accessToken);
-      } catch (syncError) {
-        console.error('Initial sync failed, attempting re-consent:', syncError);
-        const renewedToken = await refreshToken(true);
-        if (!renewedToken) {
-          return;
-        }
-        await syncWithToken(renewedToken);
-      }
-    } catch (error) {
+      await syncWithToken(accessToken);
+    } catch (error: any) {
       console.error('Fetch error:', error);
-      setSyncError('Unable to sync Gmail. Please try again in a moment.');
+      setSyncError(error.message || 'Unable to sync Gmail. Please try again in a moment.');
     } finally {
       setRefreshing(false);
     }
